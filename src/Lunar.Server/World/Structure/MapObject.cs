@@ -1,4 +1,16 @@
-﻿using Lunar.Server.Content.Graphics;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+using Lunar.Server.Content.Graphics;
 using Lunar.Server.Utilities.Scripting;
 using Lunar.Server.World.Actors;
 using System;
@@ -117,7 +129,7 @@ namespace Lunar.Server.World.Structure
             netBuffer.Write(this.Sprite.Transform.Color);
             netBuffer.Write(this.Position);
             netBuffer.Write(this.Animated);
-            netBuffer.Write(this.Layer.ZIndex);
+            netBuffer.Write(this.Layer.LayerIndex);
             netBuffer.Write(this.FrameTime);
 
             // Is it a light?
@@ -170,7 +182,7 @@ namespace Lunar.Server.World.Structure
 
                 mapObject.CollisionDescriptor = new CollisionDescriptor(new Rect(
                     mapObject.Position.X, mapObject.Position.Y,
-                    Constants.TILE_SIZE, Constants.TILE_SIZE));
+                    Settings.TileSize, Settings.TileSize));
             }
            
 

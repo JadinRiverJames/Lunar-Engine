@@ -1,5 +1,16 @@
-﻿using System.Collections.Generic;
-using Lidgren.Network;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+
 using Lunar.Core;
 using Lunar.Core.Net;
 using Lunar.Core.Utilities;
@@ -12,15 +23,15 @@ namespace Lunar.Server.World
 {
     public class WorldManager : IService
     {
-        private WorldDictionary<string, Map> _maps;
+        private readonly WorldDictionary<string, Map> _maps;
 
-        public WorldManager()
+        public WorldManager(NetHandler netHandler)
         {
-            Server.ServiceLocator.GetService<NetHandler>().AddPacketHandler(PacketType.LOGIN, this.Handle_PlayerLogin);
-            Server.ServiceLocator.GetService<NetHandler>().AddPacketHandler(PacketType.REGISTER, this.Handle_PlayerRegister);
-            Server.ServiceLocator.GetService<NetHandler>().AddPacketHandler(PacketType.PLAYER_MSG, this.Handle_PlayerMessage);
-            Server.ServiceLocator.GetService<NetHandler>().AddPacketHandler(PacketType.QUIT_GAME, this.Handle_QuitGame);
-            Server.ServiceLocator.GetService<NetHandler>().ConnectionLost += Player_Connection_Lost;
+            netHandler.AddPacketHandler(PacketType.LOGIN, this.Handle_PlayerLogin);
+            netHandler.AddPacketHandler(PacketType.REGISTER, this.Handle_PlayerRegister);
+            netHandler.AddPacketHandler(PacketType.PLAYER_MSG, this.Handle_PlayerMessage);
+            netHandler.AddPacketHandler(PacketType.QUIT_GAME, this.Handle_QuitGame);
+            netHandler.ConnectionLost += Player_Connection_Lost;
 
             _maps = new WorldDictionary<string, Map>();
         }
@@ -43,7 +54,7 @@ namespace Lunar.Server.World
 
         private void Handle_PlayerMessage(PacketReceivedEventArgs args)
         {
-            Player player = Server.ServiceLocator.GetService<PlayerManager>().GetPlayer(args.Connection.RemoteUniqueIdentifier);
+            Player player = Server.ServiceLocator.GetService<PlayerManager>().GetPlayer(args.Connection.UniqueIdentifier);
 
             // Make sure the sender is online.
             if (player == null) return;
@@ -69,15 +80,15 @@ namespace Lunar.Server.World
             var username = args.Message.ReadString();
 
             // Get specified password hash.
-            var password = args.Message.ReadString();      
+            var password = args.Message.ReadString();
 
-            NetConnection senderConn = args.Message.SenderConnection;
+            PlayerConnection senderConn = args.Connection;
 
             bool registerSuccess = Server.ServiceLocator.GetService<PlayerManager>().RegisterPlayer(username, password, senderConn);
 
             if (registerSuccess)
             {
-                var player = Server.ServiceLocator.GetService<PlayerManager>().GetPlayer(senderConn.RemoteUniqueIdentifier);
+                var player = Server.ServiceLocator.GetService<PlayerManager>().GetPlayer(senderConn.UniqueIdentifier);
 
                 this.JoinGame(player);
             }
@@ -91,13 +102,13 @@ namespace Lunar.Server.World
             // Get specified password hash.
             string password = args.Message.ReadString();
 
-            NetConnection senderConn = args.Message.SenderConnection;
+            PlayerConnection senderConn = args.Connection;
 
             var loginSuccess = Server.ServiceLocator.GetService<PlayerManager>().LoginPlayer(username, password, senderConn);
 
             if (loginSuccess)
             {
-                var player = Server.ServiceLocator.GetService<PlayerManager>().GetPlayer(senderConn.RemoteUniqueIdentifier);
+                var player = Server.ServiceLocator.GetService<PlayerManager>().GetPlayer(senderConn.UniqueIdentifier);
 
                 this.JoinGame(player);
             }

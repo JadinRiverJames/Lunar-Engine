@@ -47,6 +47,9 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="KopiLua">
       <HintPath>..\libs\KopiLua.dll</HintPath>
@@ -75,20 +78,29 @@
   <ItemGroup>
     <Compile Include="Constants.cs" />
     <Compile Include="Content\Graphics\Sprite.cs" />
+    <Compile Include="Content\Graphics\SpriteSheet.cs" />
     <Compile Include="Net\NetHandler.cs" />
     <Compile Include="Net\ConnectionEventArgs.cs" />
     <Compile Include="Net\Packet.cs" />
     <Compile Include="Net\PacketReceivedEventArgs.cs" />
+    <Compile Include="Net\PlayerConnection.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Server.cs" />
+    <Compile Include="Settings.cs" />
     <Compile Include="Utilities\Commands\CommandHandler.cs" />
+    <Compile Include="Utilities\Events\GameEventArgs.cs" />
+    <Compile Include="Utilities\Events\GameEventListener.cs" />
+    <Compile Include="Utilities\Events\GameEventSource.cs" />
     <Compile Include="Utilities\GameTime.cs" />
     <Compile Include="Utilities\GameTimer.cs" />
     <Compile Include="Utilities\GameTimerManager.cs" />
+    <Compile Include="Utilities\Plugin\Plugin.cs" />
     <Compile Include="Utilities\Logger.cs" />
     <Compile Include="Utilities\Pathfinding\Pathfinder.cs" />
     <Compile Include="Utilities\Pathfinding\SearchNode.cs" />
+    <Compile Include="Utilities\Plugin\PluginManager.cs" />
+    <Compile Include="Utilities\Role.cs" />
     <Compile Include="Utilities\Scripting\Script.cs" />
     <Compile Include="Utilities\Scripting\ScriptAction.cs" />
     <Compile Include="Utilities\Scripting\ScriptActionArgs.cs" />
@@ -99,26 +111,25 @@
     <Compile Include="Utilities\WorldDictionary.cs" />
     <Compile Include="World\Actors\Equipment.cs" />
     <Compile Include="World\Actors\Inventory.cs" />
+    <Compile Include="World\Actors\NPCDefinition.cs" />
     <Compile Include="World\Actors\PacketHandlers\PlayerPacketHandler.cs" />
     <Compile Include="World\BehaviorDefinition\ItemBehaviorDefinition.cs" />
     <Compile Include="World\Dialogue\Dialogue.cs" />
     <Compile Include="World\Actors\IActor.cs" />
     <Compile Include="World\BehaviorDefinition\ActorBehaviorDefinition.cs" />
     <Compile Include="World\Actors\NPC.cs" />
-    <Compile Include="World\Actors\NPCDescriptor.cs" />
     <Compile Include="World\Actors\NPCManager.cs" />
     <Compile Include="World\Actors\Player.cs" />
     <Compile Include="World\Actors\PlayerDescriptor.cs" />
     <Compile Include="World\Actors\PlayerManager.cs" />
+    <Compile Include="World\ItemDefinition.cs" />
     <Compile Include="World\Structure\CollisionDescriptor.cs" />
     <Compile Include="World\Structure\LightInformation.cs" />
     <Compile Include="World\Structure\MapItem.cs" />
     <Compile Include="World\Structure\MapObject.cs" />
     <Compile Include="World\InventorySlot.cs" />
     <Compile Include="World\Item.cs" />
-    <Compile Include="World\ItemDescriptor.cs" />
     <Compile Include="World\ItemManager.cs" />
-    <Compile Include="World\ItemTypes.cs" />
     <Compile Include="World\Structure\Layer.cs" />
     <Compile Include="World\Structure\Map.cs" />
     <Compile Include="World\Structure\MapManager.cs" />
@@ -150,9 +161,12 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <WCFMetadata Include="Connected Services\" />
+    <Folder Include="Utilities\Language\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>xcopy "$(ProjectDir)..\Server Data\Data\*.*" "$(ProjectDir)$(OutDir)\Data\" /Y /E</PostBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

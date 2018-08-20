@@ -1,4 +1,16 @@
-﻿using System;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
@@ -125,6 +137,8 @@ namespace Lunar.Client.GUI.Widgets
             }
         }
 
+        public Vector2 Origin { get; set; }
+
         public Color ForeColor { get; set; }
 
         public Texture2D IdleTexture
@@ -194,21 +208,23 @@ namespace Lunar.Client.GUI.Widgets
         /// </summary>
         internal Button()
         {
+            _textures = new Texture2D[3];
+            _position = new Vector2();
+            _state = WidgetStates.Idle;
+            this.ForeColor = Color.Black;
+            this.Selectable = false;
+            this.Visible = true;
+            this.ZOrder = 1;
+            this.Origin = Vector2.Zero;
         }
 
         public Button(Texture2D idleTexture, string text, SpriteFont font, uint charSize = 15)
+            : this()
         {
-            _textures = new Texture2D[3];
-            _position = new Vector2();
             _textures[0] = idleTexture;
-            _state = WidgetStates.Idle;
             _font = font;
             _charSize = charSize;
             _text = text;
-
-            this.ForeColor = Color.Black;
-
-            this.Selectable = false;
 
             float x = this.Position.X + ((this.IdleTexture.Width) / 2f) - (this.Font.MeasureString(_text).X / 2);
             float y = this.Position.Y + ((this.IdleTexture.Height) / 2f) - (this.Font.MeasureString(_text).Y / 2);
@@ -283,7 +299,7 @@ namespace Lunar.Client.GUI.Widgets
                     break;
             }
 
-            spriteBatch.DrawString(_font, this.Text, _textPosition, this.ForeColor, 0f, Vector2.Zero, 1f, SpriteEffects.None, ((float)this.ZOrder / widgetCount) + 0.01f);
+            spriteBatch.DrawString(_font, this.Text, _textPosition, this.ForeColor, 0f, Vector2.Zero, 1f, SpriteEffects.None, Math.Min(((float)this.ZOrder / widgetCount) + 0.01f, 1));
         }
 
         public void BindTo(IWidget widget)

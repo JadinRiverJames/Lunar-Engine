@@ -1,4 +1,16 @@
-﻿using System;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+using System;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -53,6 +65,9 @@ namespace Lunar.Editor.Controls
             {
                 this.lstLayers.Items.Add(layer.Name, true);
             }
+
+            this.lstLayers.SelectedItem = this.lstLayers.Items[0];
+            this.lstLayers.SetItemChecked(0, true);
         }
 
         public void AddLayer(string layerName)
@@ -67,15 +82,7 @@ namespace Lunar.Editor.Controls
             this.lstLayers.SelectedItem = this.lstLayers.Items[this.lstLayers.Items.Count - 1];
             this.lstLayers.SetItemChecked(this.lstLayers.Items.Count - 1, true);
 
-            _map.Layers.Add(layerName, new Layer(_map.Dimensions, layerName, 1f / _map.Layers.Count + 1));
-
-            // We now need to adjust the zIndex of all the other map layers
-            float layerI = 0f;
-            foreach (var layer in _map.Layers.Values)
-            {
-                layer.ZIndex = layerI;
-                layerI += 1f / _map.Layers.Count;
-            }
+            _map.Layers.Add(layerName, new Layer(_map.Dimensions, layerName, _map.Layers.Count + 1));
         }
 
         private void buttonAddLayer_Click(object sender, EventArgs e)
@@ -121,12 +128,10 @@ namespace Lunar.Editor.Controls
             this.lstLayers.SetItemChecked(index, checkState);
 
 
-            float zIndex = 0f;
-            float zIndexStep = 1f / this.Layers.Length;
+            int lIndex = 0;
             foreach (var layerName in this.Layers)
             {
-                _map.Layers[layerName].ZIndex = zIndex;
-                zIndex += zIndexStep;
+                _map.Layers[layerName].LayerIndex = lIndex++;
             }
         }
 

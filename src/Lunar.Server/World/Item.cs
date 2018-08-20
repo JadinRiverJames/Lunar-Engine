@@ -1,4 +1,18 @@
-﻿using Lidgren.Network;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+
+using System;
+using Lidgren.Network;
 using Lunar.Core.World;
 using Lunar.Server.Content.Graphics;
 using Lunar.Server.Utilities;
@@ -10,7 +24,6 @@ namespace Lunar.Server.World
 {
     public class Item
     {
-        private readonly ItemDescriptor _itemDescriptor;
         private string _name;
         private Sprite _sprite;
         private bool _stackable;
@@ -45,39 +58,37 @@ namespace Lunar.Server.World
 
         public ItemBehaviorDefinition BehaviorDefinition { get { return _behaviorDefinition; } set { _behaviorDefinition = value; } }
 
-        public Item(ItemDescriptor itemDescriptor)
+        public Item(ItemDefinition itemDef)
         {
-            if (itemDescriptor == null)
+            if (itemDef == null)
             {
-                Logger.LogEvent("Null item descriptor!", LogTypes.ERROR);
+                Logger.LogEvent("Null item definition!", LogTypes.ERROR, Environment.StackTrace);
 
                 this.Name = "Null";
                 this.Sprite = new Sprite("nullItem");
                 return;
             }
 
-            _itemDescriptor = itemDescriptor;
+            this.Name = itemDef.Descriptor.Name;
+            this.Sprite = new Sprite(itemDef.Descriptor.TexturePath);
+            this.Stackable = itemDef.Descriptor.Stackable;
+            this.ItemType = itemDef.Descriptor.ItemType;
+            this.SlotType = itemDef.Descriptor.SlotType;
+            this.Strength = itemDef.Descriptor.Strength;
+            this.Intelligence = itemDef.Descriptor.Intelligence;
+            this.Dexterity = itemDef.Descriptor.Dexterity;
+            this.Defence = itemDef.Descriptor.Defence;
+            this.Health = itemDef.Descriptor.Health;
+            this.BehaviorDefinition = itemDef.BehaviorDefinition;
 
-            this.Name = itemDescriptor.Name;
-            this.Sprite = itemDescriptor.Sprite;
-            this.Stackable = itemDescriptor.Stackable;
-            this.ItemType = itemDescriptor.ItemType;
-            this.SlotType = itemDescriptor.SlotType;
-            this.Strength = itemDescriptor.Strength;
-            this.Intelligence = itemDescriptor.Intelligence;
-            this.Dexterity = itemDescriptor.Dexterity;
-            this.Defence = itemDescriptor.Defence;
-            this.Health = itemDescriptor.Health;
-            this.BehaviorDefinition = itemDescriptor.BehaviorDefinition;
-
-            itemDescriptor.DefinitionChanged += ItemDescriptor_DefinitionChanged;
+            itemDef.Descriptor.DefinitionChanged += ItemDescriptor_DefinitionChanged;
 
             this.BehaviorDefinition.OnCreated?.Invoke(new ScriptActionArgs(this));
         }
 
         private void ItemDescriptor_DefinitionChanged(object sender, System.EventArgs e)
         {
-            this.BehaviorDefinition = ((ItemDescriptor)sender).BehaviorDefinition;
+            this.BehaviorDefinition = ((ItemDefinition)sender).BehaviorDefinition;
         }
 
         public void OnUse(IActor user)

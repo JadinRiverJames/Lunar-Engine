@@ -1,31 +1,38 @@
-﻿/* Copyright (C) 2015 John Lamontagne - All Rights Reserved
- * Unauthorized copying of this file, via any medium is strictly prohibited
- * Proprietary and confidential
- * Written by John Lamontagne <jdlamont@asu.edu>.
- */
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
 
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
 using Lidgren.Network;
 using System;
 using System.Collections.Generic;
 using Lunar.Core.Net;
-using Lunar.Core.Utilities;
 
 namespace Lunar.Server.Net
 {
-    public class NetHandler : IService
+    public class NetHandler
     {
         private readonly NetServer _netServer;
         private readonly Dictionary<PacketType, List<Action<PacketReceivedEventArgs>>> _packetHandlers;
+        private readonly Dictionary<long, PlayerConnection> _connections;
 
         public event EventHandler<ConnectionEventArgs> ConnectionReceived;
 
         public event EventHandler<ConnectionEventArgs> ConnectionLost;
 
-        public NetHandler()
+        public NetHandler(string gameName, int port)
         {
             _packetHandlers = new Dictionary<PacketType, List<Action<PacketReceivedEventArgs>>>();
+            _connections = new Dictionary<long, PlayerConnection>();
 
-            var config = new NetPeerConfiguration(Constants.GAME_NAME) { Port = Constants.SERVER_PORT };
+            var config = new NetPeerConfiguration(gameName) { Port = port };
             config.DisableMessageType(NetIncomingMessageType.NatIntroductionSuccess);
             config.DisableMessageType(NetIncomingMessageType.Receipt);
             config.DisableMessageType(NetIncomingMessageType.UnconnectedData);
@@ -55,7 +62,7 @@ namespace Lunar.Server.Net
                         {
                             foreach (var handler in _packetHandlers[packetType])
                             {
-                                handler.Invoke(new PacketReceivedEventArgs(message, message.SenderConnection));
+                                handler.Invoke(new PacketReceivedEventArgs(message, _connections[message.SenderConnection.RemoteUniqueIdentifier]));
                                 // Reset the read position.
                                 message.Position = 0;
                                 message.ReadInt16();
@@ -73,11 +80,13 @@ namespace Lunar.Server.Net
                         {
                             case NetConnectionStatus.Connected:
                                 Console.WriteLine("Established connection with: {0}.", message.SenderEndPoint.ToString());
+                                _connections.Add(message.SenderConnection.RemoteUniqueIdentifier, new PlayerConnection(message.SenderConnection, this));
                                 this.ConnectionReceived?.Invoke(this, new ConnectionEventArgs(message.SenderConnection));
                                 break;
 
                             case NetConnectionStatus.Disconnected:
                                 Console.WriteLine("Connection with {0} lost.", message.SenderEndPoint.ToString());
+                                _connections.Remove(message.SenderConnection.RemoteUniqueIdentifier);
                                 this.ConnectionLost?.Invoke(this, new ConnectionEventArgs(message.SenderConnection));
                                 break;
                         }
@@ -114,11 +123,6 @@ namespace Lunar.Server.Net
         public void Start()
         {
             _netServer.Start();
-        }
-
-        public void Initalize()
-        {
-           
         }
     }
 }

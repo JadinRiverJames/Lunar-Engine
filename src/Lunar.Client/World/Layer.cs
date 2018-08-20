@@ -1,10 +1,23 @@
-﻿using System;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Lidgren.Network;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Lunar.Client.Utilities;
+using Lunar.Core;
 using Lunar.Core.Utilities.Data;
 
 namespace Lunar.Client.World
@@ -20,11 +33,14 @@ namespace Lunar.Client.World
 
         public float ZIndex { get; }
 
-        public Layer(Vector2 dimensions, float zIndex, string name)
+        public int LayerIndex { get; }
+
+        public Layer(Vector2 dimensions, int lIndex, string name)
         {
             _tiles = new Tile[(int)dimensions.X, (int)dimensions.Y];
             this.Name = name;
-            this.ZIndex = zIndex;
+            this.LayerIndex = lIndex;
+            this.ZIndex = lIndex * EngineConstants.PARTS_PER_LAYER;
 
             _collisionDescriptors = new Dictionary<Vector2, CollisionDescriptor>();
             _mapObjects = new List<MapObject>();
@@ -77,13 +93,12 @@ namespace Lunar.Client.World
 
         public bool CheckCollision(Vector2 position, Rectangle collisionBounds)
         {
-
-            if (position.X < 0 || position.Y < 0 ||
-                position.X >= (_tiles.GetLength(0) * Constants.TILE_WIDTH) || position.Y >= (_tiles.GetLength(1) * Constants.TILE_HEIGHT))
-                return true;
-
             Rectangle collisionArea = new Rectangle((int)(position.X + collisionBounds.Left), (int)(position.Y + collisionBounds.Top),
                collisionBounds.Width, collisionBounds.Height);
+
+            if (collisionArea.Left < 0 || collisionArea.Top < 0 ||
+                collisionArea.Left + collisionArea.Width >= (_tiles.GetLength(0) * EngineConstants.TILE_WIDTH) || collisionArea.Top + collisionArea.Height >= (_tiles.GetLength(1) * EngineConstants.TILE_HEIGHT))
+                return true;
 
 
             foreach (var collisionDescriptor in _collisionDescriptors.Values)

@@ -1,14 +1,23 @@
-﻿/* Copyright (C) 2015 John Lamontagne - All Rights Reserved
- * Unauthorized copying of this file, via any medium is strictly prohibited
- * Proprietary and confidential
- * Written by John Lamontagne <jdlamont@asu.edu>.
- */
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
 
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+
+using System;
 using Lunar.Server.Content.Graphics;
 using Lunar.Server.Utilities.Scripting;
 using Lunar.Server.World.BehaviorDefinition;
 using System.IO;
 using Lunar.Core.Utilities.Data;
+using Lunar.Server.Utilities;
 
 namespace Lunar.Server.World.Actors
 {
@@ -16,9 +25,10 @@ namespace Lunar.Server.World.Actors
     {
         private string _name;
         private string _password;
-        private Sprite _sprite;
+        private SpriteSheet _spriteSheet;
         private float _speed;
         private int _level;
+        private int _experience;
         private int _health;
         private int _vitality;
         private int _maximumHealth;
@@ -29,6 +39,7 @@ namespace Lunar.Server.World.Actors
         private Vector _position;
         private string _mapID;
         private ActorBehaviorDefinition _behaviorDefinition;
+        private Role _role;
 
         public string Name
         {
@@ -42,10 +53,10 @@ namespace Lunar.Server.World.Actors
             set => _password = value;
         }
 
-        public Sprite Sprite
+        public SpriteSheet SpriteSheet
         {
-            get => _sprite;
-            set => _sprite = value;
+            get => _spriteSheet;
+            set => _spriteSheet = value;
         }
 
         public float Speed
@@ -60,13 +71,21 @@ namespace Lunar.Server.World.Actors
             set => _level = value;
         }
 
+        public int Experience
+        {
+            get => _experience;
+            set => _experience = value;
+        }
+
         public int Health
         {
             get => _health;
             set => _health = value;
         }
 
-        public int Strength { get => _strength;
+        public int Strength
+        {
+            get => _strength;
             set => _strength = value;
         }
 
@@ -106,13 +125,19 @@ namespace Lunar.Server.World.Actors
             set => _mapID = value;
         }
 
+        public Role Role
+        {
+            get => _role;
+            set => _role = value;
+        }
+
         public ActorBehaviorDefinition BehaviorDefinition => _behaviorDefinition;
 
         public PlayerDescriptor(string username, string password)
         {
             _name = username;
             _password = password;
-            _mapID = Constants.STARTER_MAP;
+            _mapID = Settings.StartingMap;
         }
 
         public static PlayerDescriptor Create(string name, string password)
@@ -122,17 +147,21 @@ namespace Lunar.Server.World.Actors
 
             var descriptor = new PlayerDescriptor(name, password)
             {
-                Name= name,
+                Name = name,
                 Password = password,
-                Sprite = new Sprite("chara1"),
+                SpriteSheet = new SpriteSheet(new Sprite("chara1.png"), 3, 4, 52, 72),
                 Health = 100,
                 MaximumHealth = 100,
+                Level = 1,
+                Experience = 0,
                 Speed = .1f,
                 Strength = 10,
                 Intelligence = 10,
                 Dexterity = 10,
                 Defense = 10,
-                _behaviorDefinition = behaviorDefinition
+                _behaviorDefinition = behaviorDefinition,
+                _mapID = Settings.StartingMap,
+                _role = Settings.DefaultRole
             };
 
             return descriptor;
@@ -141,7 +170,7 @@ namespace Lunar.Server.World.Actors
         public static PlayerDescriptor Load(string name)
         {
             var password = "";
-            Sprite sprite;
+            SpriteSheet sprite;
             float speed;
             int level;
             int health;
@@ -152,46 +181,58 @@ namespace Lunar.Server.World.Actors
             int defense;
             Vector position;
             string mapID;
-
-            using (var fileStream = new FileStream(Constants.FILEPATH_ACCOUNTS + name + ".acc", FileMode.Open))
+            Role role;
+            try
             {
-                using (var binaryReader = new BinaryReader(fileStream))
+
+                using (var fileStream = new FileStream(Constants.FILEPATH_ACCOUNTS + name + ".acc", FileMode.Open))
                 {
-                    password = binaryReader.ReadString();
-                    sprite = new Sprite(binaryReader.ReadString());
-                    speed = binaryReader.ReadSingle();
-                    maximumHealth = binaryReader.ReadInt32();
-                    health = binaryReader.ReadInt32();
-                    level = binaryReader.ReadInt32();
-                    strength = binaryReader.ReadInt32();
-                    intelligence = binaryReader.ReadInt32();
-                    dexterity = binaryReader.ReadInt32();
-                    defense = binaryReader.ReadInt32();
-                    position = new Vector(binaryReader.ReadSingle(), binaryReader.ReadSingle());
-                    mapID = binaryReader.ReadString();
+                    using (var binaryReader = new BinaryReader(fileStream))
+                    {
+                        password = binaryReader.ReadString();
+                        sprite = new SpriteSheet(new Sprite(binaryReader.ReadString()), binaryReader.ReadInt32(),
+                            binaryReader.ReadInt32(), binaryReader.ReadInt32(), binaryReader.ReadInt32());
+                        speed = binaryReader.ReadSingle();
+                        maximumHealth = binaryReader.ReadInt32();
+                        health = binaryReader.ReadInt32();
+                        level = binaryReader.ReadInt32();
+                        strength = binaryReader.ReadInt32();
+                        intelligence = binaryReader.ReadInt32();
+                        dexterity = binaryReader.ReadInt32();
+                        defense = binaryReader.ReadInt32();
+                        position = new Vector(binaryReader.ReadSingle(), binaryReader.ReadSingle());
+                        mapID = binaryReader.ReadString();
+                        role = Settings.Roles?[binaryReader.ReadString()] ?? Settings.DefaultRole;
+                    }
                 }
+
+                var script = new Script(Constants.FILEPATH_SCRIPTS + "player.lua");
+                var behaviorDefinition = (ActorBehaviorDefinition)script["BehaviorDefinition"];
+
+                var playerDescriptor = new PlayerDescriptor(name, password)
+                {
+                    SpriteSheet = sprite,
+                    Speed = speed,
+                    Level = level,
+                    Health = health,
+                    MaximumHealth = maximumHealth,
+                    Strength = strength,
+                    Intelligence = intelligence,
+                    Dexterity = dexterity,
+                    Defense = defense,
+                    Position = position,
+                    MapID = mapID,
+                    _behaviorDefinition = behaviorDefinition,
+                    Role = role
+                };
+
+                return playerDescriptor;
             }
-
-            var script = new Script(Constants.FILEPATH_SCRIPTS + "player.lua");
-            var behaviorDefinition = (ActorBehaviorDefinition)script["BehaviorDefinition"];
-
-            var playerDescriptor = new PlayerDescriptor(name, password)
+            catch (Exception ex)
             {
-                Sprite = sprite,
-                Speed = speed,
-                Level = level,
-                Health = health,
-                MaximumHealth = maximumHealth,
-                Strength = strength,
-                Intelligence = intelligence,
-                Dexterity = dexterity,
-                Defense = defense,
-                Position = position,
-                MapID = mapID,
-                _behaviorDefinition = behaviorDefinition
-            };
-
-            return playerDescriptor;
+                Logger.LogEvent($"Failed to register player: {ex.Message}", LogTypes.ERROR, Environment.StackTrace);
+                return null;
+            }
         }
 
         public void Save()
@@ -201,7 +242,11 @@ namespace Lunar.Server.World.Actors
                 using (var binaryWriter = new BinaryWriter(fileStream))
                 {
                     binaryWriter.Write(_password);
-                    binaryWriter.Write(_sprite.TextureName);
+                    binaryWriter.Write(_spriteSheet.Sprite.TextureName);
+                    binaryWriter.Write(_spriteSheet.HorizontalFrames);
+                    binaryWriter.Write(_spriteSheet.VerticalFrames);
+                    binaryWriter.Write(_spriteSheet.FrameWidth);
+                    binaryWriter.Write(_spriteSheet.FrameHeight);
                     binaryWriter.Write(_speed);
                     binaryWriter.Write(_maximumHealth);
                     binaryWriter.Write(_health);
@@ -213,6 +258,7 @@ namespace Lunar.Server.World.Actors
                     binaryWriter.Write(_position.X);
                     binaryWriter.Write(_position.Y);
                     binaryWriter.Write(_mapID);
+                    binaryWriter.Write(_role.Name);
                 }
             }
         }

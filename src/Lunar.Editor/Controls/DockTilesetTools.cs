@@ -1,4 +1,16 @@
-﻿using System;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
@@ -64,7 +76,7 @@ namespace Lunar.Editor.Controls
 
             foreach (var tileset in map.Tilesets.Values)
             {
-                string tilesetPath = _project.RootDirectory + "/" + tileset.Tag.ToString();
+                string tilesetPath = _project.ClientRootDirectory + "/" + tileset.Tag.ToString();
                 var tilesetTexture = _tilesetTextureLoader.LoadFromFile(tilesetPath);
                 tilesetTexture.Tag = tileset.Tag;
                 
@@ -175,10 +187,10 @@ namespace Lunar.Editor.Controls
                 _pointTexture.SetData<Color>(new Color[] { Color.White });
             }
 
-            spriteBatch.Draw(_pointTexture, new Rectangle(rectangle.X, rectangle.Y, lineWidth, rectangle.Height + lineWidth), color);
-            spriteBatch.Draw(_pointTexture, new Rectangle(rectangle.X, rectangle.Y, rectangle.Width + lineWidth, lineWidth), color);
-            spriteBatch.Draw(_pointTexture, new Rectangle(rectangle.X + rectangle.Width, rectangle.Y, lineWidth, rectangle.Height + lineWidth), color);
-            spriteBatch.Draw(_pointTexture, new Rectangle(rectangle.X, rectangle.Y + rectangle.Height, rectangle.Width + lineWidth, lineWidth), color);
+            spriteBatch.Draw(_pointTexture, null, new Rectangle(rectangle.X, rectangle.Y, lineWidth, rectangle.Height + lineWidth), null, null, 0f, null, color, SpriteEffects.None, 1f);
+            spriteBatch.Draw(_pointTexture, null, new Rectangle(rectangle.X, rectangle.Y, rectangle.Width + lineWidth, lineWidth), null, null, 0f, null, color, SpriteEffects.None, 1f);
+            spriteBatch.Draw(_pointTexture, null, new Rectangle(rectangle.X + rectangle.Width, rectangle.Y, lineWidth, rectangle.Height + lineWidth), null, null, 0f, null, color, SpriteEffects.None, 1f);
+            spriteBatch.Draw(_pointTexture, null, new Rectangle(rectangle.X, rectangle.Y + rectangle.Height, rectangle.Width + lineWidth, lineWidth), null, null, 0f, null, color, SpriteEffects.None, 1f);
         }
 
 
@@ -187,7 +199,7 @@ namespace Lunar.Editor.Controls
             using (OpenFileDialog dialog = new OpenFileDialog())
             {
                 dialog.RestoreDirectory = true;
-                dialog.InitialDirectory = _project.RootDirectory.FullName;
+                dialog.InitialDirectory = _project.ClientRootDirectory.FullName;
                 dialog.Filter = @"Tileset Files (*.png)|*.png";
                 dialog.DefaultExt = ".png";
                 dialog.AddExtension = true;
@@ -239,7 +251,7 @@ namespace Lunar.Editor.Controls
 
             foreach (var tileset in _currentMap.Tilesets.Values)
             {
-                string tilesetPath = ((SuiteForm)this.ParentForm).Project.RootDirectory + "/" + tileset.Tag.ToString();
+                string tilesetPath = ((SuiteForm)this.ParentForm).Project.ClientRootDirectory + "/" + tileset.Tag.ToString();
                 var tilesetTexture = _tilesetTextureLoader.LoadFromFile(tilesetPath);
                 tilesetTexture.Tag = tileset.Tag;
 

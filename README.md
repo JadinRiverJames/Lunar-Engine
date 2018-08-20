@@ -1,7 +1,7 @@
 Lunar Engine
 ============
 
-Lunar Engine is a free, open source 2D MMORPG engine based in .NET
+Lunar Engine is a free, open source 2D MMORPG engine in C#
 
 
 Documentation
@@ -17,7 +17,7 @@ Licensed under the Apache License, Version 2.0 (the "License").
 
 Website & Community
 -------
-https://www.mmorpgcreation.com
+https://www.rpgorigin.com
 
 Multimedia
 -------

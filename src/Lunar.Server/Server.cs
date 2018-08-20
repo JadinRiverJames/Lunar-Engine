@@ -1,9 +1,15 @@
-﻿/* Copyright (C) 2015 John Lamontagne - All Rights Reserved
- * Unauthorized copying of this file, via any medium is strictly prohibited
- * Proprietary and confidential
- * Written by John Lamontagne <jdlamont@asu.edu>.
- */
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
 
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
 using Lunar.Server.Net;
 using Lunar.Server.Utilities;
 using Lunar.Server.Utilities.Scripting;
@@ -15,6 +21,8 @@ using System.IO;
 using System.Threading;
 using Lunar.Core.Utilities;
 using Lunar.Server.Utilities.Commands;
+using Lunar.Server.Utilities.Events;
+using Lunar.Server.Utilities.Plugin;
 
 namespace Lunar.Server
 {
@@ -29,6 +37,8 @@ namespace Lunar.Server
         private Thread _netThread;
         private Thread _worldThread;
 
+        private NetHandler _netHandler;
+
         public static ServiceLocator ServiceLocator { get { return _serviceLocator = _serviceLocator ?? new ServiceLocator(); } }
 
         public Server()
@@ -39,23 +49,32 @@ namespace Lunar.Server
         {
             Console.WriteLine("Initalizing server...");
 
+            Console.WriteLine("Loading server settings...");
+            Settings.Initalize();
+
             Console.WriteLine("Checking file integrity...");
             this.CheckFileIntegrity();
 
             Server.ServiceLocator.RegisterService(new ScriptManager());
 
-            // Create and initalize the NetHandler.
-            Server.ServiceLocator.RegisterService(new NetHandler());
+            _netHandler = new NetHandler(Settings.GameName, Settings.ServerPort);
+            Packet.Initalize(_netHandler);
 
             // Create and initalize the game content managers.
             Server.ServiceLocator.RegisterService(new ItemManager());
             Server.ServiceLocator.RegisterService(new NPCManager());
             Server.ServiceLocator.RegisterService(new MapManager());
 
-            Server.ServiceLocator.RegisterService(new WorldManager());
+            Server.ServiceLocator.RegisterService(new WorldManager(_netHandler));
             Server.ServiceLocator.RegisterService(new PlayerManager());
 
-            CommandHandler commandHandler = new CommandHandler();
+            Server.ServiceLocator.RegisterService(new GameEventListener());
+
+            var pluginManager = new PluginManager();
+            pluginManager.Initalize();
+            Server.ServiceLocator.RegisterService(pluginManager);
+
+            CommandHandler commandHandler = new CommandHandler(_netHandler);
             Server.ServiceLocator.RegisterService(commandHandler);
             commandHandler.Initalize();
 
@@ -66,7 +85,7 @@ namespace Lunar.Server
 
         public void Start()
         {
-            Server.ServiceLocator.GetService<NetHandler>().Start();
+            _netHandler.Start();
 
             _webCommunicator.Run();
 
@@ -77,7 +96,7 @@ namespace Lunar.Server
         {
             _netThread = new Thread(() =>
             {
-                float millisecondsPerUpdate = 1000f / Constants.TICK_RATE;
+                float millisecondsPerUpdate = 1000f / Settings.TickRate;
                 float nextUpdateTime = 0;
                 var gameTime = new GameTime();
 
@@ -87,7 +106,7 @@ namespace Lunar.Server
                 {
                     if (gameTime.TotalElapsedTime >= nextUpdateTime)
                     {
-                        Server.ServiceLocator.GetService<NetHandler>().Update();
+                        _netHandler.Update();
 
                         nextUpdateTime = gameTime.TotalElapsedTime + millisecondsPerUpdate;
 
@@ -98,7 +117,7 @@ namespace Lunar.Server
 
             _worldThread = new Thread(() =>
             {
-                float millisecondsPerUpdate = 1000f / Constants.TICK_RATE;
+                float millisecondsPerUpdate = 1000f / Settings.TickRate;
                 float nextUpdateTime = 0;
                 var gameTime = new GameTime();
 

@@ -1,8 +1,19 @@
-﻿using System;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+using System;
 using Lunar.Server.Net;
 using Lidgren.Network;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using Lunar.Core.Net;
 using Lunar.Core.Utilities;
@@ -18,108 +29,117 @@ using Lunar.Server.World.BehaviorDefinition;
 
 namespace Lunar.Server.World.Actors
 {
-    public class NPC : IActor
+    public sealed class NPC : IActor
     {
-        private ActorBehaviorDefinition _behaviorDescriptor;
-        private string _name;
-        private Sprite _sprite;
-        private float _speed;
-        private int _level;
-        private int _health;
-        private int _maximumHealth;
-        private int _aggresiveRange;
-        private Vector _position;
-        private Rect _collisionBounds;
-        private Direction _direction;
         private Map _map;
-        private Random _random;
-        private readonly long _uniqueID;
-        private Vector _maxRoam;
-        private Layer _layer;      
         private Vector _frameSize;
-        private int _attackRange;
         private List<Vector> _targetPath;
-        private long _nextMoveTime;
         private long _nextAttackTime;
+        private Random _random;
+        private long _nextMoveTime;
 
-        public string Name { get { return _name; } }
-        public Sprite Sprite { get { return _sprite; } set { _sprite = value; } }
-        public float Speed { get { return _speed; } set { _speed = value; } }
-        public int Level { get { return _level; } set { _level = value; } }
-        public int Health { get { return _health; } set { _health = value; } }
-        public int MaximumHealth { get { return _maximumHealth; } set { _maximumHealth = value; } }
-        public int AggresiveRange { get { return _aggresiveRange; } set { _aggresiveRange = value; } }
-        public Vector MaxRoam { get { return _maxRoam; } }
-        public int AttackRange { get { return _attackRange; } }
+        private int _health;
 
-        public Layer Layer { get { return _layer; } set { _layer = value; } }
+        public string Name { get; }
 
-        public long UniqueID => _uniqueID;
+        public Sprite Sprite { get; set; }
 
-        public Vector Position { get { return _position; } private set { _position = value; } }
+        public float Speed { get; set; }
 
-        public Rect CollisionBounds { get { return _collisionBounds; } set { _collisionBounds = value; } }
+        public int Level { get; set; }
 
-        public Direction Direction { get { return _direction; } set { _direction = value; } }
+        public int Health
+        {
+            get => _health;
+            set
+            {
+                _health = value;
 
-        public ActorBehaviorDefinition BehaviorDefinition { get { return _behaviorDescriptor; } set { _behaviorDescriptor = value; } }
+                if (!this.Alive)
+                {
+                    this.Died?.Invoke(this, new EventArgs());
+                }
+            }
+        }
+
+        public int MaximumHealth { get; set; }
+
+        public int AggresiveRange { get; set; }
+
+        public Vector MaxRoam { get; }
+
+        public int AttackRange { get; }
+
+        public Layer Layer { get; set; }
+
+        public long UniqueID { get; }
+
+        public Vector Position { get; private set; }
+
+        public Rect CollisionBounds { get; set; }
+
+        public Direction Direction { get; set; }
+
+        public ActorBehaviorDefinition BehaviorDefinition { get; set; }
 
         public bool Aggrevated { get; set; }
 
         public ActorStates State { get; set; }
 
-        public Map Map { get { return _map; } }
+        public Map Map => _map;
 
         public IActor Target { get; set; }
 
         public bool Attackable => true;
 
+        public bool Alive => this.Health > 0;
+
         public event EventHandler<SubjectEventArgs> EventOccured;
 
-        public NPC(NPCDescriptor descriptor, Map map)
+
+        public NPC(NPCDefinition definition, Map map)
         {
-            _name = descriptor.Name;
+            this.Name = definition.Descriptor.Name;
+
             _map = map;
 
-            this.Sprite = descriptor.Sprite;
-            this.Speed = descriptor.Speed;
-            this.Level = descriptor.Level;
-            this.Health = descriptor.MaximumHealth;
-            this.MaximumHealth = descriptor.MaximumHealth;
-            this.AggresiveRange = descriptor.AggresiveRange;
-            this.CollisionBounds = descriptor.CollisionBounds;
-            this.BehaviorDefinition = descriptor.BehaviorDefinition;
+            this.Sprite = new Sprite(definition.Descriptor.TexturePath);
+            this.Speed = definition.Descriptor.Speed;
+            this.Level = definition.Descriptor.Level;
+            this.Health = definition.Descriptor.MaximumHealth;
+            this.MaximumHealth = definition.Descriptor.MaximumHealth;
+            this.AggresiveRange = definition.Descriptor.AggresiveRange;
+            this.CollisionBounds = definition.Descriptor.CollisionBounds;
+            
             this.Layer = map.Layers.ElementAt(0);
 
-            _frameSize = descriptor.FrameSize;
-            _attackRange = descriptor.AttackRange;
+            _frameSize = definition.Descriptor.FrameSize;
+            AttackRange = definition.Descriptor.AttackRange;
 
-            _maxRoam = descriptor.MaxRoam;
+            MaxRoam = definition.Descriptor.MaxRoam;
             
             _random = new Random();
 
-            _uniqueID = this.GetHashCode() + Environment.TickCount;
+            this.UniqueID = Guid.NewGuid().GetHashCode();
             _targetPath = new List<Vector>();
 
             _map.AddActor(this);
 
-            var npcDataPacket = new Packet(PacketType.NPC_DATA);
+            this.BehaviorDefinition = definition.BehaviorDefinition;
+
+            var npcDataPacket = new Packet(PacketType.NPC_DATA, ChannelType.UNASSIGNED);
             npcDataPacket.Message.Write(this.Pack());
-            _map.SendPacket(npcDataPacket, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            _map.SendPacket(npcDataPacket, NetDeliveryMethod.ReliableOrdered);
 
-            this.BehaviorDefinition.OnCreated.Invoke(new ScriptActionArgs(this));
 
-            descriptor.DefinitionChanged += Descriptor_DefinitionChanged;
+            this.BehaviorDefinition?.OnCreated?.Invoke(new ScriptActionArgs(this));
         }
+
+        
 
         public void OnAttacked(IActor attacker, int damageDelt)
         {
-            
-        }
-
-        private void Descriptor_DefinitionChanged(object sender, EventArgs e)
-        {
-            this.BehaviorDefinition = ((NPCDescriptor) sender).BehaviorDefinition;
+            this.BehaviorDefinition?.Attacked?.Invoke(new ScriptActionArgs(this, attacker, damageDelt));
         }
 
         public void Update(GameTime gameTime)
@@ -132,7 +152,7 @@ namespace Lunar.Server.World.Actors
             this.ProcessMovement(gameTime);
             this.ProcessCombat(gameTime);
 
-            this.BehaviorDefinition.Update.Invoke(new ScriptActionArgs(this, new object[] { gameTime }));
+            this.BehaviorDefinition?.Update?.Invoke(new ScriptActionArgs(this, new object[] { gameTime }));
         }
 
         private void ProcessCombat(GameTime gameTime)
@@ -147,9 +167,9 @@ namespace Lunar.Server.World.Actors
                 && posDiff.Y.IsWithin(0, this.AttackRange))
             {
 
-                if (this.Target is Player)
+                if (this.Target is Player player)
                 {
-                    if (((Player)this.Target).InLoadingScreen)
+                    if (player.InLoadingScreen)
                         return;
                 }
 
@@ -209,16 +229,13 @@ namespace Lunar.Server.World.Actors
 
         public bool WithinRangeOf(IActor actor)
         {
-            Rect collisionBoundsRight = new Rect(this.Position.X + this.CollisionBounds.Left + Constants.TILE_SIZE, this.Position.Y + this.CollisionBounds.Top,
+            Rect collisionBoundsRight = new Rect(this.Position.X + this.CollisionBounds.Left + Settings.TileSize, this.Position.Y + this.CollisionBounds.Top,
                 this.CollisionBounds.Width, this.CollisionBounds.Height);
 
-            Rect collisionBoundsLeft = new Rect(this.Position.X + this.CollisionBounds.Left - Constants.TILE_SIZE, this.Position.Y + this.CollisionBounds.Top,
+            Rect collisionBoundsLeft = new Rect(this.Position.X + this.CollisionBounds.Left - Settings.TileSize, this.Position.Y + this.CollisionBounds.Top,
                 this.CollisionBounds.Width, this.CollisionBounds.Height);
 
-            Rect targetCollisionBounds = new Rect(actor.Position.X + actor.CollisionBounds.Left, actor.Position.Y + actor.CollisionBounds.Top, 
-                actor.CollisionBounds.Width, actor.CollisionBounds.Height);
-
-            return (collisionBoundsRight.Intersects(targetCollisionBounds) || collisionBoundsLeft.Intersects(targetCollisionBounds));
+            return (collisionBoundsRight.Intersects(actor.CollisionBounds) || collisionBoundsLeft.Intersects(actor.CollisionBounds));
         }
 
         private void ProcessMovement(GameTime gameTime)
@@ -301,9 +318,9 @@ namespace Lunar.Server.World.Actors
                         _targetPath.RemoveAt(_targetPath.Count - 1);
                 }
 
-                if (_targetPath.Count == 0)
+                if (_targetPath.Count == 0 && _nextMoveTime <= gameTime.TotalElapsedTime)
                 {
-                    _nextMoveTime = gameTime.TotalElapsedTime + Constants.NPC_REST_PERIOD;
+                    _nextMoveTime = gameTime.TotalElapsedTime + Settings.NPCRestPeriod;
                     this.State = ActorStates.Idle;
                     this.SendMovementPacket();
                 }
@@ -347,8 +364,8 @@ namespace Lunar.Server.World.Actors
                     continue;
                 }
 
-                if (actor.Position.X >= this.Position.X - this.AggresiveRange * Constants.TILE_SIZE && actor.Position.X <= this.Position.X + this.AggresiveRange * Constants.TILE_SIZE &&
-                    actor.Position.Y >= this.Position.Y - this.AggresiveRange* Constants.TILE_SIZE && actor.Position.Y <= this.Position.Y + this.AggresiveRange * Constants.TILE_SIZE)
+                if (actor.Position.X >= this.Position.X - this.AggresiveRange * Settings.TileSize && actor.Position.X <= this.Position.X + this.AggresiveRange * Settings.TileSize &&
+                    actor.Position.Y >= this.Position.Y - this.AggresiveRange* Settings.TileSize && actor.Position.Y <= this.Position.Y + this.AggresiveRange * Settings.TileSize)
                 {
                     return actor;
                 }
@@ -370,7 +387,7 @@ namespace Lunar.Server.World.Actors
 
         private void SendMovementPacket(List<Vector> targetPath)
         {
-            var packet = new Packet(PacketType.NPC_MOVING);
+            var packet = new Packet(PacketType.NPC_MOVING, ChannelType.UNASSIGNED);
             packet.Message.Write(this.UniqueID);
             packet.Message.Write(true);
             packet.Message.Write((int)this.Direction);
@@ -381,7 +398,7 @@ namespace Lunar.Server.World.Actors
                 packet.Message.Write(pos);
             }
 
-            _map.SendPacket(packet, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            _map.SendPacket(packet, NetDeliveryMethod.ReliableOrdered);
         }
         
         /// <summary>
@@ -389,21 +406,21 @@ namespace Lunar.Server.World.Actors
         /// </summary>
         private void SendMovementPacket()
         {
-            var packet = new Packet(PacketType.NPC_MOVING);
+            var packet = new Packet(PacketType.NPC_MOVING, ChannelType.UNASSIGNED);
             packet.Message.Write(this.UniqueID);
             packet.Message.Write(false);
             packet.Message.Write((int)this.Direction);
             packet.Message.Write(this.Position);
 
-            _map.SendPacket(packet, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            _map.SendPacket(packet, NetDeliveryMethod.ReliableOrdered);
         }
 
         public void WarpTo(Vector position)
         {
             this.Position = position;
-            var npcDataPacket = new Packet(PacketType.NPC_DATA);
+            var npcDataPacket = new Packet(PacketType.NPC_DATA, ChannelType.UNASSIGNED);
             npcDataPacket.Message.Write(this.Pack());
-            _map.SendPacket(npcDataPacket, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            _map.SendPacket(npcDataPacket, NetDeliveryMethod.ReliableOrdered);
 
             this.EventOccured?.Invoke(this, new SubjectEventArgs("moved", null));
         }
@@ -427,5 +444,7 @@ namespace Lunar.Server.World.Actors
 
             return netBuffer;
         }
+
+        public event EventHandler Died;
     }
 }

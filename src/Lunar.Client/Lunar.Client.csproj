@@ -55,21 +55,6 @@
   <PropertyGroup>
     <ApplicationIcon>Icon.ico</ApplicationIcon>
   </PropertyGroup>
-  <PropertyGroup>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-  </PropertyGroup>
-  <PropertyGroup>
-    <ManifestCertificateThumbprint>F2AC1932D7627AD8B1D0A338C0CE38A045B795BF</ManifestCertificateThumbprint>
-  </PropertyGroup>
-  <PropertyGroup>
-    <ManifestKeyFile>Ruinic.Client_TemporaryKey.pfx</ManifestKeyFile>
-  </PropertyGroup>
-  <PropertyGroup>
-    <GenerateManifests>true</GenerateManifests>
-  </PropertyGroup>
-  <PropertyGroup>
-    <SignManifests>true</SignManifests>
-  </PropertyGroup>
   <ItemGroup>
     <Compile Include="Constants.cs" />
     <Compile Include="GUI\GUIManager.cs" />
@@ -77,6 +62,7 @@
     <Compile Include="GUI\Widgets\Button.cs" />
     <Compile Include="GUI\Widgets\Chatbox.cs" />
     <Compile Include="GUI\Widgets\Checkbox.cs" />
+    <Compile Include="GUI\Widgets\DisplayMode.cs" />
     <Compile Include="GUI\Widgets\IWidget.cs" />
     <Compile Include="GUI\Widgets\Label.cs" />
     <Compile Include="GUI\Widgets\Picture.cs" />
@@ -102,6 +88,7 @@
     <Compile Include="Utilities\CommandInterpreter.cs" />
     <Compile Include="Utilities\ConsoleCommands.cs" />
     <Compile Include="Utilities\ConsoleRedirector.cs" />
+    <Compile Include="Utilities\ContentManagerExtensions.cs" />
     <Compile Include="Utilities\Input\InputHelper.cs" />
     <Compile Include="Utilities\Services\ContentManagerService.cs" />
     <Compile Include="Utilities\Services\GraphicsDeviceService.cs" />
@@ -136,6 +123,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Icon.ico" />
@@ -189,6 +177,7 @@
     <None Include="app.config" />
     <None Include="app.manifest" />
     <None Include="Content\Content.mgcb" />
+    <None Include="Lunar.Client.licenseheader" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.6.1">
@@ -215,6 +204,13 @@
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(MSBuildExtensionsPath)\MonoGame\v3.0\MonoGame.Content.Builder.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>xcopy "$(ProjectDir)..\libs\MonoGame.Penumbra.DesktopGL.dll" "$(ProjectDir)$(OutDir)" /Y /E
+
+xcopy "$(ProjectDir)..\libs\MonoGame.Penumbra.dll" "$(ProjectDir)$(OutDir)" /Y /E
+
+xcopy "$(ProjectDir)..\Client Data\Data\*.*" "$(ProjectDir)$(OutDir)\Data\" /Y /E</PostBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

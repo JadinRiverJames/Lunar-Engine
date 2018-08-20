@@ -75,20 +75,46 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Constants.cs" />
+    <Compile Include="Content\Graphics\Animation.cs" />
+    <Compile Include="Controls\CreateDirectoryDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\CreateDirectoryDialog.Designer.cs">
+      <DependentUpon>CreateDirectoryDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Controls\CreateLayerDialog.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Controls\CreateLayerDialog.Designer.cs">
       <DependentUpon>CreateLayerDialog.cs</DependentUpon>
     </Compile>
-    <Compile Include="Controls\CreateDirectoryDialog.cs">
+    <Compile Include="Controls\CreateProjectDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Controls\CreateDirectoryDialog.Designer.cs">
-      <DependentUpon>CreateDirectoryDialog.cs</DependentUpon>
+    <Compile Include="Controls\CreateProjectDialog.Designer.cs">
+      <DependentUpon>CreateProjectDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\DockAnimationEditor.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\DockAnimationEditor.Designer.cs">
+      <DependentUpon>DockAnimationEditor.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\DockNPCEditor.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\DockNPCEditor.Designer.cs">
+      <DependentUpon>DockNPCEditor.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\DockItemDocument.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\DockItemDocument.Designer.cs">
+      <DependentUpon>DockItemDocument.cs</DependentUpon>
     </Compile>
     <Compile Include="Controls\DockMapAttributes.cs">
       <SubType>UserControl</SubType>
@@ -158,11 +184,17 @@
     </Compile>
     <Compile Include="Controls\ScriptFileNameEditor.cs" />
     <Compile Include="Controls\SpriteFileNameEditor.cs" />
-    <Compile Include="Controls\TileAttributeDialog.cs">
+    <Compile Include="Controls\NPCSpawnDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Controls\TileAttributeDialog.Designer.cs">
-      <DependentUpon>TileAttributeDialog.cs</DependentUpon>
+    <Compile Include="Controls\NPCSpawnDialog.Designer.cs">
+      <DependentUpon>NPCSpawnDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\WarpAttributeDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\WarpAttributeDialog.Designer.cs">
+      <DependentUpon>WarpAttributeDialog.cs</DependentUpon>
     </Compile>
     <Compile Include="Controls\View.cs">
       <SubType>UserControl</SubType>
@@ -170,8 +202,9 @@
     <Compile Include="Controls\View.Designer.cs">
       <DependentUpon>View.cs</DependentUpon>
     </Compile>
+    <Compile Include="GameFileChangedEventArgs.cs" />
     <Compile Include="Project.cs" />
-    <Compile Include="Settings.cs" />
+    <Compile Include="FileEventArgs.cs" />
     <Compile Include="SuiteForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -193,11 +226,23 @@
     <Compile Include="World\MapObject.cs" />
     <Compile Include="World\MapObjectPropertiesHelper.cs" />
     <Compile Include="World\Tile.cs" />
+    <EmbeddedResource Include="Controls\CreateDirectoryDialog.resx">
+      <DependentUpon>CreateDirectoryDialog.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Controls\CreateLayerDialog.resx">
       <DependentUpon>CreateLayerDialog.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Controls\CreateDirectoryDialog.resx">
-      <DependentUpon>CreateDirectoryDialog.cs</DependentUpon>
+    <EmbeddedResource Include="Controls\CreateProjectDialog.resx">
+      <DependentUpon>CreateProjectDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\DockAnimationEditor.resx">
+      <DependentUpon>DockAnimationEditor.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\DockNPCEditor.resx">
+      <DependentUpon>DockNPCEditor.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\DockItemDocument.resx">
+      <DependentUpon>DockItemDocument.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\DockLUADocument.resx">
       <DependentUpon>DockLUADocument.cs</DependentUpon>
@@ -229,8 +274,11 @@
     <EmbeddedResource Include="Controls\DockProject.resx">
       <DependentUpon>DockProject.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Controls\TileAttributeDialog.resx">
-      <DependentUpon>TileAttributeDialog.cs</DependentUpon>
+    <EmbeddedResource Include="Controls\NPCSpawnDialog.resx">
+      <DependentUpon>NPCSpawnDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\WarpAttributeDialog.resx">
+      <DependentUpon>WarpAttributeDialog.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\View.resx">
       <DependentUpon>View.cs</DependentUpon>
@@ -253,6 +301,7 @@
       <DesignTime>True</DesignTime>
     </Compile>
     <None Include="app.config" />
+    <None Include="Lunar.Editor.licenseheader" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>

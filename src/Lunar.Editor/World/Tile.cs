@@ -1,4 +1,16 @@
-﻿using System.Collections.Generic;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using Microsoft.Xna.Framework;
@@ -116,15 +128,21 @@ namespace Lunar.Editor.World
                 string spriteName = bR.ReadString();
                 float zIndex = bR.ReadSingle();
 
-                _sprite = new Sprite(tilesets[Path.GetFileName(spriteName)])
+                if (tilesets.ContainsKey(Path.GetFileName(spriteName)))
                 {
-                    LayerDepth = zIndex, 
-                    Position = tilePosition
-                };
+                    _sprite = new Sprite(tilesets[Path.GetFileName(spriteName)])
+                    {
+                        LayerDepth = zIndex,
+                        Position = tilePosition
+                    };
+                }
 
                 this.Color = new Color(bR.ReadByte(), bR.ReadByte(), bR.ReadByte(), bR.ReadByte());
 
-                this.Sprite.SourceRectangle = new Rectangle(bR.ReadInt32(), bR.ReadInt32(), bR.ReadInt32(), bR.ReadInt32());
+                var rectangle = new Rectangle(bR.ReadInt32(), bR.ReadInt32(), bR.ReadInt32(), bR.ReadInt32());
+
+                if (_sprite != null)
+                    _sprite.SourceRectangle = rectangle;
 
                 this.FrameCount = bR.ReadInt32();
             }

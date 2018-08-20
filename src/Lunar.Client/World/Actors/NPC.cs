@@ -1,10 +1,24 @@
-﻿using System.Collections.Generic;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+using System.Collections.Generic;
 using Lidgren.Network;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Penumbra;
 using Lunar.Client.Net;
+using Lunar.Client.Utilities;
+using Lunar.Core;
 using Lunar.Core.Net;
 using Lunar.Core.World;
 using Lunar.Graphics;
@@ -20,7 +34,7 @@ namespace Lunar.Client.World.Actors
         private int _health;
         private int _maximumHealth;
         private Vector2 _position;
-        private Sprite _sprite;
+        private SpriteSheet _spriteSheet;
         private long _uniqueID;
         private List<Vector2> _targetPath;
         private bool _moving;
@@ -35,6 +49,12 @@ namespace Lunar.Client.World.Actors
         public string Name => _name;
 
         public Light Light { get; set; }
+
+        public SpriteSheet SpriteSheet
+        {
+            get => _spriteSheet;
+            set => _spriteSheet = value;
+        }
 
         public float Speed
         {
@@ -66,7 +86,7 @@ namespace Lunar.Client.World.Actors
             set
             {
                 _position = value;
-                this.Sprite.Position = value;
+                this.SpriteSheet.Position = value;
             }
         }
 
@@ -76,8 +96,6 @@ namespace Lunar.Client.World.Actors
 
         public Rectangle CollisionBounds => _collisionBounds;
 
-        public Sprite Sprite => _sprite;
-
         public Direction Direction
         {
             get => _direction;
@@ -85,8 +103,8 @@ namespace Lunar.Client.World.Actors
             {
                 _direction = value;
 
-                if (this.Sprite != null)
-                    this.Sprite.SourceRectangle = new Rectangle(this.Sprite.SourceRectangle.Left, (int)_direction * (int)_frameSize.Y, (int)_frameSize.X, (int)_frameSize.Y);
+                if (this.SpriteSheet != null)
+                    this.SpriteSheet.Sprite.SourceRectangle = new Rectangle(this.SpriteSheet.Sprite.SourceRectangle.Left, (int)_direction * (int)_frameSize.Y, (int)_frameSize.X, (int)_frameSize.Y);
             }
         }
 
@@ -118,9 +136,8 @@ namespace Lunar.Client.World.Actors
                 this.Direction = (Direction)args.Message.ReadInt32();
                 this.Position = new Vector2(args.Message.ReadFloat(), args.Message.ReadFloat());
 
-                if (this.Sprite != null)
-                    this.Sprite.SourceRectangle = new Rectangle(0, (int)this.Direction * (int)_frameSize.Y, (int)_frameSize.X, (int)_frameSize.Y);
-                
+                this.SpriteSheet.HorizontalFrameIndex = (int)this.Direction;
+
                 return;
             }
 
@@ -139,7 +156,7 @@ namespace Lunar.Client.World.Actors
 
         public void Draw(SpriteBatch spriteBatch)
         {
-            spriteBatch.Draw(this.Sprite);
+            this.SpriteSheet.Draw(spriteBatch);
         }
 
         public void Update(GameTime gameTime)
@@ -251,11 +268,10 @@ namespace Lunar.Client.World.Actors
 
             if (gameTime.TotalGameTime.TotalMilliseconds > _nextUpdateSpritesheetTime)
             {
-                this.Sprite.SourceRectangle = this.Sprite.SourceRectangle.Left + _frameSize.X < _sprite.Texture.Width 
-                    ? new Rectangle(this.Sprite.SourceRectangle.Left + (int)_frameSize.X, (int)this.Direction * (int)_frameSize.Y, (int)_frameSize.X, (int)_frameSize.Y)
-                    : new Rectangle(0, (int)this.Direction * (int)_frameSize.Y, (int)_frameSize.X, (int)_frameSize.Y);
+                this.SpriteSheet.HorizontalFrameIndex += 1;
+                this.SpriteSheet.VerticalFrameIndex = (int)this.Direction;
 
-                _nextUpdateSpritesheetTime = (long)gameTime.TotalGameTime.TotalMilliseconds + (long)((_frameSize.Y / this.Speed) / (_sprite.Texture.Width / _frameSize.X));
+                _nextUpdateSpritesheetTime = (long)gameTime.TotalGameTime.TotalMilliseconds + (long)((_frameSize.Y / this.Speed) / (this.SpriteSheet.Sprite.Texture.Width / _frameSize.X));
             }
 
             this.Position = new Vector2(this.Position.X + dX, this.Position.Y + dY);
@@ -264,32 +280,31 @@ namespace Lunar.Client.World.Actors
         public void Unpack(NetBuffer buffer, ContentManager contentManager)
         {
             _name = buffer.ReadString();
+            string texturePath = buffer.ReadString();
 
-            if (_sprite == null)
-            {
-                _sprite = new Sprite(
-                    contentManager.Load<Texture2D>(Constants.FILEPATH_GFX + "/Characters/" + buffer.ReadString()));
-            }
-            else
-            {
-                this.Sprite.Texture = contentManager.Load<Texture2D>(Constants.FILEPATH_GFX + "/Characters/" + buffer.ReadString());
-            }
-
+            var sprite = new Sprite(
+                contentManager.LoadTexture2D(Constants.FILEPATH_DATA + texturePath));
             this.Speed = buffer.ReadFloat();
+            
+           
             this.Health = buffer.ReadInt32();
             this.MaximumHealth = buffer.ReadInt32();
             this.Level = buffer.ReadInt32();        
-            this.Position = new Vector2(buffer.ReadFloat(), buffer.ReadFloat());
+            Vector2 position = new Vector2(buffer.ReadFloat(), buffer.ReadFloat());
             _frameSize = new Vector2(buffer.ReadFloat(), buffer.ReadFloat());
             _collisionBounds = new Rectangle(buffer.ReadInt32(), buffer.ReadInt32(), buffer.ReadInt32(), buffer.ReadInt32());
+
+            this.SpriteSheet = new SpriteSheet(sprite, (int)(sprite.Texture.Width / _frameSize.X), (int)(sprite.Texture.Height / _frameSize.Y), (int)_frameSize.X, (int)_frameSize.Y);
+
+            this.Position = position;
 
             var layerName = buffer.ReadString();
             _layer = Client.ServiceLocator.GetService<WorldManager>().Map.GetLayer(layerName);
 
-            this.Sprite.LayerDepth = this.Layer.ZIndex + .01f;
+            this.SpriteSheet.Sprite.LayerDepth = _layer.ZIndex + (EngineConstants.PARTS_PER_LAYER / 2);
+            this.SpriteSheet.HorizontalFrameIndex = 1;
+            this.SpriteSheet.VerticalFrameIndex = (int) this.Direction;
 
-            this.Sprite.SourceRectangle = new Rectangle((int)_frameSize.X, (int)this.Direction * (int)_frameSize.X, (int)_frameSize.X, (int)_frameSize.Y);
-            
         }
     }
 }

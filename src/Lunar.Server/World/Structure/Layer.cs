@@ -1,14 +1,21 @@
-﻿/* Copyright (C) 2015 John Lamontagne - All Rights Reserved
- * Unauthorized copying of this file, via any medium is strictly prohibited
- * Proprietary and confidential
- * Written by John Lamontagne <jdlamont@asu.edu>.
- */
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
 
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
 using Lidgren.Network;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Lunar.Core;
 using Lunar.Core.Net;
 using Lunar.Core.Utilities.Data;
 using Lunar.Core.Utilities.Logic;
@@ -30,14 +37,14 @@ namespace Lunar.Server.World.Structure
 
         public Dictionary<Vector, CollisionDescriptor> CollisionDescriptors { get { return _collisionDescriptors; } }
 
-        public float ZIndex { get; set; }
+        public int LayerIndex { get; set; }
 
-        public Layer(Vector dimensions, string layerName, float zIndex)
+        public Layer(Vector dimensions, string layerName, int lIndex)
         {
             _tiles = new Tile[(int)dimensions.X, (int)dimensions.Y];
 
             this.Name = layerName;
-            this.ZIndex = zIndex;
+            this.LayerIndex = lIndex;
 
             _playerCollidingTiles = new Dictionary<Player, List<Tile>>(); ;
             _collisionDescriptors = new Dictionary<Vector, CollisionDescriptor>();
@@ -189,10 +196,10 @@ namespace Lunar.Server.World.Structure
         {
             List<Tile> collidingTiles = new List<Tile>();
 
-            int leftCheck = (int)(position.X + collisionBounds.Left) / Constants.TILE_SIZE;
-            int topCheck = (int)(position.Y + collisionBounds.Top) / Constants.TILE_SIZE;
-            int tilesWidth = ((collisionBounds.Left + collisionBounds.Width) / Constants.TILE_SIZE) + 1;
-            int tilesHeight = ((collisionBounds.Top + collisionBounds.Height) / Constants.TILE_SIZE) + 1;
+            int leftCheck = (int)(position.X + collisionBounds.Left) / Settings.TileSize;
+            int topCheck = (int)(position.Y + collisionBounds.Top) / Settings.TileSize;
+            int tilesWidth = ((collisionBounds.Left + collisionBounds.Width) / Settings.TileSize) + 1;
+            int tilesHeight = ((collisionBounds.Top + collisionBounds.Height) / Settings.TileSize) + 1;
 
             if (tilesWidth < 1)
                 tilesWidth = 1;
@@ -222,13 +229,12 @@ namespace Lunar.Server.World.Structure
         public bool CheckCollision(Vector position, Rect collisionBounds)
         {
 
-            if (position.X < 0 || position.Y < 0 ||
-                position.X >= (_tiles.GetLength(0) * Constants.TILE_SIZE) || position.Y >= (_tiles.GetLength(1) * Constants.TILE_SIZE))
-                return true;
-
             Rect collisionArea = new Rect((int)(position.X + collisionBounds.Left), (int)(position.Y + collisionBounds.Top),
                 collisionBounds.Width, collisionBounds.Height);
 
+            if (collisionArea.Left < 0 || collisionArea.Top < 0 ||
+                collisionArea.Left + collisionArea.Width >= (_tiles.GetLength(0) * EngineConstants.TILE_WIDTH) || collisionArea.Top + collisionArea.Height >= (_tiles.GetLength(1) * EngineConstants.TILE_HEIGHT))
+                return true;
 
             foreach (var collisionDescriptor in _collisionDescriptors.Values)
             {
@@ -255,7 +261,7 @@ namespace Lunar.Server.World.Structure
             var netBuffer = new NetBuffer();
 
             netBuffer.Write(this.Name);
-            netBuffer.Write(this.ZIndex);
+            netBuffer.Write(this.LayerIndex);
 
             for (int x = 0; x < _tiles.GetLength(0); x++)
             {
@@ -298,8 +304,9 @@ namespace Lunar.Server.World.Structure
                 {
                     if (bR.ReadBoolean())
                     {
-                        _tiles[x, y] = new Tile(new Vector(x * Constants.TILE_SIZE, y * Constants.TILE_SIZE));
-                        _tiles[x, y].Load(bR, new Vector(x * Constants.TILE_SIZE, y * Constants.TILE_SIZE));
+                        _tiles[x, y] = new Tile(new Vector(x * Settings.TileSize, y * Settings.TileSize));
+                        _tiles[x, y].Load(bR, new Vector(x * Settings.TileSize, y * Settings.TileSize));
+                        _tiles[x, y].NPCSpawnerEvent += OnNpcSpawnerEvent;
                     }
                 }
             }
@@ -311,5 +318,14 @@ namespace Lunar.Server.World.Structure
                 _mapObjects.Add(mapObject);
             }
         }
+
+
+        private void OnNpcSpawnerEvent(object sender, Tile.NPCSpawnerEventArgs e)
+        {
+            this.NPCSpawnerEvent?.Invoke(this, e);
+        }
+
+        public event EventHandler<Tile.NPCSpawnerEventArgs> NPCSpawnerEvent;
+
     }
 }

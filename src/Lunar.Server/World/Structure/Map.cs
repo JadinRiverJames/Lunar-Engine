@@ -1,9 +1,15 @@
-﻿/* Copyright (C) 2015 John Lamontagne - All Rights Reserved
- * Unauthorized copying of this file, via any medium is strictly prohibited
- * Proprietary and confidential
- * Written by John Lamontagne <jdlamont@asu.edu>.
- */
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
 
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
 using Lidgren.Network;
 using Lunar.Server.Net;
 using Lunar.Server.Utilities;
@@ -97,23 +103,32 @@ namespace Lunar.Server.World.Structure
 
         private void SendMapItem(MapItem mapItem)
         {
-            var packet = new Packet(PacketType.MAP_ITEM_SPAWN);
+            var packet = new Packet(PacketType.MAP_ITEM_SPAWN, ChannelType.UNASSIGNED);
             packet.Message.Write(mapItem.Position);
             packet.Message.Write(mapItem.Layer.Name);
             packet.Message.Write(mapItem.Item.PackData());
-            this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered);
         }
 
         public void RemoveItem(Item item)
         {
             var mapItem = _mapItems.FirstOrDefault(mItem => mItem.Item == item);
 
-            var packet = new Packet(PacketType.MAP_ITEM_DESPAWN);
-            packet.Message.Write(mapItem.Position);
-            packet.Message.Write(mapItem.Item.PackData());
-            this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            if (mapItem != null)
+            {
+                var packet = new Packet(PacketType.MAP_ITEM_DESPAWN, ChannelType.UNASSIGNED);
+                packet.Message.Write(mapItem.Position);
+                packet.Message.Write(mapItem.Item.PackData());
+                this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered);
 
-            _mapItems.Remove(mapItem);
+                _mapItems.Remove(mapItem);
+            }
+            else
+            {
+                Logger.LogEvent($"Specified item does not exist on map; cannot remove: {item.Name}", LogTypes.ERROR, Environment.StackTrace);
+            }
+
+          
         }
 
         public void AddPlayerStartArea(Vector playerStartArea, Layer layer)
@@ -201,9 +216,9 @@ namespace Lunar.Server.World.Structure
 
         public void OnPlayerQuit(Player player)
         {
-            var packet = new Packet(PacketType.PLAYER_LEFT);
+            var packet = new Packet(PacketType.PLAYER_LEFT, ChannelType.UNASSIGNED);
             packet.Message.Write(player.UniqueID);
-            this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered);
 
             // Remove the player.
             this.RemoveActor(player.UniqueID);
@@ -212,14 +227,14 @@ namespace Lunar.Server.World.Structure
         public void OnPlayerJoined(Player player)
         {
             // Send map data packet to player.
-            var mapDataPacket = new Packet(PacketType.MAP_DATA);
+            var mapDataPacket = new Packet(PacketType.MAP_DATA, ChannelType.UNASSIGNED);
             mapDataPacket.Message.Write(this.PackData());
-            player.SendPacket(mapDataPacket, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            player.SendPacket(mapDataPacket, NetDeliveryMethod.ReliableOrdered);
 
             // Send the joining player to the current map players.
-            var joiningPlayerDataPacket = new Packet(PacketType.PLAYER_JOINED);
+            var joiningPlayerDataPacket = new Packet(PacketType.PLAYER_JOINED, ChannelType.UNASSIGNED);
             joiningPlayerDataPacket.Message.Write(player.Pack());
-            this.SendPacket(joiningPlayerDataPacket, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            this.SendPacket(joiningPlayerDataPacket, NetDeliveryMethod.ReliableOrdered);
 
             // Add player to the map
             this.AddActor(player);
@@ -227,19 +242,19 @@ namespace Lunar.Server.World.Structure
             // Send all map players to player.
             foreach (var p in this.GetActors<Player>())
             {
-                var playerDataPacket = new Packet(PacketType.PLAYER_JOINED);
+                var playerDataPacket = new Packet(PacketType.PLAYER_JOINED, ChannelType.UNASSIGNED);
                 playerDataPacket.Message.Write(p.Pack());
 
-                player.SendPacket(playerDataPacket, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+                player.SendPacket(playerDataPacket, NetDeliveryMethod.ReliableOrdered);
             }
 
             // Send all npcs to the player
             foreach (var npc in this.GetActors<NPC>())
             {
-                var npcDataPacket = new Packet(PacketType.NPC_DATA);
+                var npcDataPacket = new Packet(PacketType.NPC_DATA, ChannelType.UNASSIGNED);
                 npcDataPacket.Message.Write(npc.Pack());
                 
-                player.SendPacket(npcDataPacket, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+                player.SendPacket(npcDataPacket, NetDeliveryMethod.ReliableOrdered);
             }
 
             // Select random starting location
@@ -262,7 +277,7 @@ namespace Lunar.Server.World.Structure
         {
             if (!_actors.ContainsKey(actorID))
             {
-                Logger.LogEvent($"Actor {actorID} does not exist in map!", LogTypes.ERROR);
+                Logger.LogEvent($"Actor {actorID} does not exist in map!", LogTypes.ERROR, Environment.StackTrace);
                 return;;
             }
 
@@ -278,11 +293,11 @@ namespace Lunar.Server.World.Structure
             }
         }
 
-        public void SendPacket(Packet packet, NetDeliveryMethod method, ChannelType channelType)
+        public void SendPacket(Packet packet, NetDeliveryMethod method)
         {
             foreach (var player in this.GetActors<Player>())
             {
-                player.SendPacket(packet, method, channelType);
+                player.SendPacket(packet, method);
                 packet.Reset();
             }
         }
@@ -335,10 +350,22 @@ namespace Lunar.Server.World.Structure
                     for (int i = 0; i < layerCount; i++)
                     {
                         string layerName = bR.ReadString();
-                        float zIndex = bR.ReadSingle();
+                        int lIndex = bR.ReadInt32();
 
-                        var layer = new Layer(map.Dimensions, layerName, zIndex);
+                        var layer = new Layer(map.Dimensions, layerName, lIndex);
                         layer.Load(bR);
+                        layer.NPCSpawnerEvent += (sender, args) =>
+                        {
+                            var npcDesc = Server.ServiceLocator.GetService<NPCManager>().GetNPC(args.Name);
+                            NPC npc = new NPC(npcDesc, map)
+                            {
+                                Layer = (Layer) sender
+                            };
+                            npc.WarpTo(args.Position);
+
+                            // This allows the tile spawner to keep track of npcs that exist, and respawn if neccessary (i.e., they die).
+                            args.HeartbeatListener.NPCs.Add(npc);
+                        };
 
                         map.AddLayer(layerName, layer);
                     }
@@ -354,7 +381,7 @@ namespace Lunar.Server.World.Structure
                     {
                         if (layer.GetTile(x, y) != null && layer.GetTile(x, y).Attribute == TileAttributes.PlayerSpawn)
                         {
-                            map.AddPlayerStartArea(new Vector(x * Constants.TILE_SIZE, y * Constants.TILE_SIZE), layer);
+                            map.AddPlayerStartArea(new Vector(x * Settings.TileSize, y * Settings.TileSize), layer);
                         }
                     }
                 }

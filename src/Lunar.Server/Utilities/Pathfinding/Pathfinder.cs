@@ -1,4 +1,16 @@
-﻿using Lunar.Server.World.Structure;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+using Lunar.Server.World.Structure;
 using System;
 using System.Collections.Generic;
 using Lunar.Core.Utilities.Data;
@@ -92,8 +104,8 @@ namespace Lunar.Server.Utilities.Pathfinding
         /// </summary>
         public List<Vector> FindPath(Vector startPoint, Vector endPoint)
         {
-            Vector normStartPoint = new Vector((int)(startPoint.X / Constants.TILE_SIZE), (int)(startPoint.Y / Constants.TILE_SIZE));
-            Vector normEndPoint = new Vector((int)(endPoint.X / Constants.TILE_SIZE), (int)(endPoint.Y / Constants.TILE_SIZE));
+            Vector normStartPoint = new Vector((int)(startPoint.X / Settings.TileSize), (int)(startPoint.Y / Settings.TileSize));
+            Vector normEndPoint = new Vector((int)(endPoint.X / Settings.TileSize), (int)(endPoint.Y / Settings.TileSize));
 
             if (normStartPoint.X < _mapBounds.Left || normStartPoint.Y < _mapBounds.Top 
                 || normEndPoint.X < _mapBounds.Left || normEndPoint.Y < _mapBounds.Top)
@@ -268,8 +280,8 @@ namespace Lunar.Server.Utilities.Pathfinding
             for (int i = closedList.Count - 1; i >= 0; i--)
             {
                 // Add the path, as well as transform the positions from tile-space to world-space.
-                finalPath.Add(new Vector(closedList[i].Position.X * Constants.TILE_SIZE,
-                                          closedList[i].Position.Y * Constants.TILE_SIZE));
+                finalPath.Add(new Vector(closedList[i].Position.X * Settings.TileSize,
+                                          closedList[i].Position.Y * Settings.TileSize));
             }
 
             return finalPath;
@@ -288,7 +300,7 @@ namespace Lunar.Server.Utilities.Pathfinding
                         Walkable = true
                     };
 
-                    if (_layer.CheckCollision(new Vector(x * Constants.TILE_SIZE, y * Constants.TILE_SIZE), new Rect(0, 0, 32, 32)))
+                    if (_layer.CheckCollision(new Vector(x * Settings.TileSize, y * Settings.TileSize), new Rect(0, 0, 32, 32)))
                     {
                         node.Walkable = false;
                     }

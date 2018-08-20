@@ -1,4 +1,16 @@
-﻿using System;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -60,19 +72,13 @@ namespace Lunar.Client.GUI.Widgets
 
         public Vector2 Scale
         {
-            get { return _scale; }
-            set
-            {
-                _scale = value;
-            }
+            get => _scale;
+            set => _scale = value;
         }
 
         public Vector2 Position
         {
-            get
-            {
-                return _position;
-            }
+            get => _position;
             set
             {
                 _position = value;
@@ -83,9 +89,11 @@ namespace Lunar.Client.GUI.Widgets
             }
         }
 
+        public Vector2 Origin { get; set; }
+
         public string Mask
         {
-            get { return _mask; }
+            get => _mask;
             set
             {
                 _mask = value;
@@ -106,16 +114,15 @@ namespace Lunar.Client.GUI.Widgets
             }
         }
 
-        public SpriteFont Font { get { return _font; } set { _font = value; } }
+        public SpriteFont Font { get => _font;
+            set => _font = value;
+        }
 
         public Color ForeColor { get; set; }
 
         public string Text
         {
-            get
-            {
-                return _text;
-            }
+            get => _text;
             set
             {
                 if (string.IsNullOrEmpty(value))
@@ -168,6 +175,8 @@ namespace Lunar.Client.GUI.Widgets
 
             this.ForeColor = Color.White;
             this.Scale = new Vector2(1, 1);
+            this.Origin = Vector2.Zero;
+            this.Visible = true;
 
             _textOffset = textOffset;
             _area = new Rectangle((int)_position.X, (int)_position.Y, _sprite.Width, _sprite.Height);
@@ -186,6 +195,7 @@ namespace Lunar.Client.GUI.Widgets
             this.ForeColor = Color.White;
             this.Scale = new Vector2(1, 1);
             this.Selectable = true;
+            this.Origin = Vector2.Zero;
 
             _textOffset = textOffset;
             _area = new Rectangle((int)_position.X, (int)_position.Y, _sprite.Width, _sprite.Height);
@@ -288,8 +298,8 @@ namespace Lunar.Client.GUI.Widgets
         {
             if (!this.Visible) return;
 
-            spriteBatch.Draw(this._sprite, this.Position, null, Color.White, 0f, Vector2.Zero, this.Scale, SpriteEffects.None, (float)this.ZOrder / widgetCount);
-            spriteBatch.DrawString(_font, _displayText, _textPosition, this.ForeColor, 0f, Vector2.Zero, 1f, SpriteEffects.None, ((float)this.ZOrder / widgetCount) + .01f);
+            spriteBatch.Draw(this._sprite, this.Position + this.Origin, null, Color.White, 0f, Vector2.Zero, this.Scale, SpriteEffects.None, (float)this.ZOrder / widgetCount);
+            spriteBatch.DrawString(_font, _displayText, _textPosition + this.Origin, this.ForeColor, 0f, Vector2.Zero, 1f, SpriteEffects.None, ((float)this.ZOrder / widgetCount) + .01f);
         }
 
         public bool Contains(Point point)

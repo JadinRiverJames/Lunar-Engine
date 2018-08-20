@@ -1,4 +1,18 @@
-﻿using System.Linq;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+
+using System;
+using System.Linq;
 using Lidgren.Network;
 using Lunar.Core;
 using Lunar.Core.Net;
@@ -17,35 +31,42 @@ namespace Lunar.Server.World.Actors.PacketHandlers
         public PlayerPacketHandler(Player player)
         {
             _player = player;
-            
-            Server.ServiceLocator.GetService<NetHandler>().AddPacketHandler(PacketType.PLAYER_MOVING, this.Handle_PlayerMoving);
-            Server.ServiceLocator.GetService<NetHandler>().AddPacketHandler(PacketType.DROP_ITEM, this.Handle_DropItem);
-            Server.ServiceLocator.GetService<NetHandler>().AddPacketHandler(PacketType.MAP_LOADED, this.Handle_MapLoaded);
-            Server.ServiceLocator.GetService<NetHandler>().AddPacketHandler(PacketType.REQ_USE_ITEM, this.Handle_UseItem);
-            Server.ServiceLocator.GetService<NetHandler>().AddPacketHandler(PacketType.REQ_UNEQUIP_ITEM, this.Handle_UnequipItem);
-            Server.ServiceLocator.GetService<NetHandler>().AddPacketHandler(PacketType.REQ_TARGET, this.Handle_ReqTarget);
-            Server.ServiceLocator.GetService<NetHandler>().AddPacketHandler(PacketType.PICKUP_ITEM, this.Handle_PickupItem);
-            Server.ServiceLocator.GetService<NetHandler>().AddPacketHandler(PacketType.PLAYER_INTERACT, this.Handle_PlayerInteract);
+
+            player.Connection.AddPacketHandler(PacketType.PLAYER_MOVING, this.Handle_PlayerMoving);
+            player.Connection.AddPacketHandler(PacketType.DROP_ITEM, this.Handle_DropItem);
+            player.Connection.AddPacketHandler(PacketType.MAP_LOADED, this.Handle_MapLoaded);
+            player.Connection.AddPacketHandler(PacketType.REQ_USE_ITEM, this.Handle_UseItem);
+            player.Connection.AddPacketHandler(PacketType.REQ_UNEQUIP_ITEM, this.Handle_UnequipItem);
+            player.Connection.AddPacketHandler(PacketType.REQ_TARGET, this.Handle_ReqTarget);
+            player.Connection.AddPacketHandler(PacketType.DESELECT_TARGET, this.Handle_DeselectTarget);
+            player.Connection.AddPacketHandler(PacketType.PICKUP_ITEM, this.Handle_PickupItem);
+            player.Connection.AddPacketHandler(PacketType.PLAYER_INTERACT, this.Handle_PlayerInteract);
+        }
+
+        private void Handle_DeselectTarget(PacketReceivedEventArgs obj)
+        {
+            _player.Target = null;
         }
 
         private void Handle_PlayerInteract(PacketReceivedEventArgs args)
         {
-            // Ensure we're handling the packet for the correct player!
-            if (_player.UniqueID != args.Connection.RemoteUniqueIdentifier)
-                return;
-
             foreach (var mapObject in _player.Layer.GetCollidingMapObjects(_player.Position, _player.CollisionBounds))
             {
                 mapObject.OnInteract(_player);
+            }
+
+            // Try to attack the target
+            if (_player.Target != null)
+            {
+                if (_player.Target.Attackable)
+                {
+                    _player.Target.OnAttacked(_player, (int)(_player.Strength * new Random().NextDouble()));
+                }
             }
         }
 
         private void Handle_ReqTarget(PacketReceivedEventArgs args)
         {
-            // Ensure we're handling the packet for the correct player!
-            if (_player.UniqueID != args.Connection.RemoteUniqueIdentifier)
-                return;
-
             var targetUniqueID = args.Message.ReadInt64();
 
             // Make sure we don't target ourselves
@@ -58,9 +79,9 @@ namespace Lunar.Server.World.Actors.PacketHandlers
             {
                 _player.Target = target;
 
-                var packet = new Packet(PacketType.TARGET_ACQ);
+                var packet = new Packet(PacketType.TARGET_ACQ, ChannelType.UNASSIGNED);
                 packet.Message.Write(target.UniqueID);
-                _player.SendPacket(packet, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+                _player.SendPacket(packet, NetDeliveryMethod.ReliableOrdered);
             }
             else
             {
@@ -70,19 +91,11 @@ namespace Lunar.Server.World.Actors.PacketHandlers
 
         private void Handle_MapLoaded(PacketReceivedEventArgs args)
         {
-            // Ensure we're handling the packet for the correct player!
-            if (_player.UniqueID != args.Connection.RemoteUniqueIdentifier)
-                return;
-
             _player.MapLoaded = true;
         }
 
         private void Handle_DropItem(PacketReceivedEventArgs args)
         {
-            // Ensure we're handling the packet for the correct player!
-            if (_player.UniqueID != args.Connection.RemoteUniqueIdentifier)
-                return;
-
             int slotNum = args.Message.ReadInt32();
 
             if (_player.Inventory.GetSlot(slotNum) != null)
@@ -95,17 +108,13 @@ namespace Lunar.Server.World.Actors.PacketHandlers
 
         private void Handle_UseItem(PacketReceivedEventArgs args)
         {
-            // Ensure we're handling the packet for the correct player!
-            if (_player.UniqueID != args.Connection.RemoteUniqueIdentifier)
-                return;
-
             int slotNum = args.Message.ReadInt32();
 
             // Sanity check: is there actually an item in this slot?
             if (_player.Inventory.GetSlot(slotNum) == null)
             {
                 // Log it!
-                Logger.LogEvent($"Player attempted to equip bad item! User: {_player.Name} SlotNum: {slotNum}.", LogTypes.GAME);
+                Logger.LogEvent($"Player attempted to equip bad item! User: {_player.Name} SlotNum: {slotNum}.", LogTypes.GAME, Environment.StackTrace);
 
                 return;
             }
@@ -126,7 +135,8 @@ namespace Lunar.Server.World.Actors.PacketHandlers
 
         private void Handle_PlayerMoving(PacketReceivedEventArgs args)
         {
-            if (_player.UniqueID != args.Connection.RemoteUniqueIdentifier || !_player.MapLoaded) return;
+            if (!_player.MapLoaded)
+                return;
 
             _player.Direction = (Direction)args.Message.ReadByte();
             var wantsToMove = args.Message.ReadBoolean();
@@ -143,7 +153,7 @@ namespace Lunar.Server.World.Actors.PacketHandlers
             if (wantsToMove)
             {
                 // Can the player actually move based on the minimum update time from the tick rate
-                if (_player.CanMove(_player.Speed * (1000f / Constants.TICK_RATE)))
+                if (_player.CanMove(_player.Speed * (1000f / Settings.TileSize)))
                 {
                     _player.SendMovementPacket();
                 }
@@ -174,17 +184,13 @@ namespace Lunar.Server.World.Actors.PacketHandlers
 
         private void Handle_UnequipItem(PacketReceivedEventArgs args)
         {
-            // Ensure we're handling the packet for the correct player!
-            if (_player.UniqueID != args.Connection.RemoteUniqueIdentifier)
-                return;
-
             int slotNum = args.Message.ReadInt32();
 
             // Sanity check: is there actually an item in this slot?
             if (_player.Equipment.GetSlot(slotNum) == null)
             {
                 // Log it!
-                Logger.LogEvent($"Player attempted to unequip bad item! User: {_player.Name} SlotNum: {slotNum}.", LogTypes.GAME);
+                Logger.LogEvent($"Player attempted to unequip bad item! User: {_player.Name} SlotNum: {slotNum}.", LogTypes.GAME, Environment.StackTrace);
 
                 return;
             }
@@ -194,7 +200,7 @@ namespace Lunar.Server.World.Actors.PacketHandlers
             if (item.ItemType != ItemTypes.Equipment || item.SlotType == EquipmentSlots.NE)
             {
                 // Log it!
-                Logger.LogEvent($"Player attempted to unequip unequippable item! User: {_player.Name} SlotNum: {slotNum}.", LogTypes.GAME);
+                Logger.LogEvent($"Player attempted to unequip unequippable item! User: {_player.Name} SlotNum: {slotNum}.", LogTypes.GAME, Environment.StackTrace);
 
                 return;
             }

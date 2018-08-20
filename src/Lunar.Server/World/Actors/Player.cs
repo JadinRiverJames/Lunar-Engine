@@ -1,9 +1,15 @@
-﻿/* Copyright (C) 2015 John Lamontagne - All Rights Reserved
- * Unauthorized copying of this file, via any medium is strictly prohibited
- * Proprietary and confidential
- * Written by John Lamontagne <jdlamont@asu.edu>.
- */
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
 
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
 using Lidgren.Network;
 using Lunar.Server.Content.Graphics;
 using Lunar.Server.Net;
@@ -28,16 +34,15 @@ namespace Lunar.Server.World.Actors
     public class Player : IActor
     {
         private readonly PlayerDescriptor _descriptor;
-        private readonly NetConnection _connection;
+        private readonly PlayerConnection _connection;
         private readonly Inventory _inventory;
         private readonly Equipment _equipment;
-        private PlayerPacketHandler _packetHandler;
+        private readonly PlayerPacketHandler _packetHandler;
 
         private IActor _lastAttacker;
 
         private Rect _collisionBounds;
 
-        private Layer _layer;
         private Map _map;
 
         // Boosted stats
@@ -57,25 +62,25 @@ namespace Lunar.Server.World.Actors
 
         public string MapID => _map != null ? _map.Name : _descriptor.MapID;
 
-        public long UniqueID => _connection.RemoteUniqueIdentifier;
+        public long UniqueID => _connection.UniqueIdentifier;
 
-        public Sprite Sprite
+        public Role Role => _descriptor.Role;
+
+        public SpriteSheet SpriteSheet
         {
-            get => _descriptor.Sprite;
-            set => _descriptor.Sprite = value;
+            get => _descriptor.SpriteSheet;
+            set => _descriptor.SpriteSheet = value;
         }
 
-        public Layer Layer
-        {
-            get => _layer;
-            set => _layer = value;
-        }
+        public Layer Layer { get; set; }
 
         public bool MapLoaded { get; set; }
 
         public Inventory Inventory => _inventory;
 
         public Equipment Equipment => _equipment;
+
+        public PlayerConnection Connection => _connection;
 
         public IActor Target { get; set; }
 
@@ -86,7 +91,7 @@ namespace Lunar.Server.World.Actors
 
         public float Speed
         {
-            get => _descriptor.Speed;
+            get => _descriptor.Speed + _speedBoost;
             set
             {
                 _descriptor.Speed = value;
@@ -99,14 +104,33 @@ namespace Lunar.Server.World.Actors
             get => _descriptor.Level;
             set
             {
+                if (value > Settings.MaxLevel)
+                    return;
+
                 _descriptor.Level = value;
                 this.SendPlayerStats();
+
+                this.SendChatMessage($"Congratulations, {this.Name}! You are now level {this.Level}", ChatMessageType.Announcement);
+            }
+        }
+
+        public int Experience
+        {
+            get => _descriptor.Experience;
+            set
+            {
+                _descriptor.Experience = value;
+
+                if (this.Level + 1 < Settings.ExperienceThreshhold.Length && _descriptor.Experience > Settings.ExperienceThreshhold[this.Level + 1])
+                {
+                    this.Level++;
+                }
             }
         }
 
         public int Strength
         {
-            get => _descriptor.Strength;
+            get => _descriptor.Strength + _strengthBoost;
             set
             {
                 _descriptor.Strength = value;
@@ -116,7 +140,7 @@ namespace Lunar.Server.World.Actors
 
         public int Intelligence
         {
-            get => _descriptor.Intelligence;
+            get => _descriptor.Intelligence + _intelBoost;
             set
             {
                 _descriptor.Intelligence = value;
@@ -126,7 +150,7 @@ namespace Lunar.Server.World.Actors
 
         public int Dexterity
         {
-            get => _descriptor.Dexterity;
+            get => _descriptor.Dexterity + _dexBoost;
             set
             {
                 _descriptor.Dexterity = value;
@@ -136,7 +160,7 @@ namespace Lunar.Server.World.Actors
 
         public int Defense
         {
-            get => _descriptor.Defense;
+            get => _descriptor.Defense + _defBoost;
             set
             {
                 _descriptor.Defense = value;
@@ -186,7 +210,7 @@ namespace Lunar.Server.World.Actors
 
         public ActorBehaviorDefinition BehaviorDefinition => _descriptor.BehaviorDefinition;
 
-        public Player(PlayerDescriptor descriptor, NetConnection connection)
+        public Player(PlayerDescriptor descriptor, PlayerConnection connection)
         {
             _descriptor = descriptor;
             _connection = connection;
@@ -203,7 +227,7 @@ namespace Lunar.Server.World.Actors
 
             if (this.BehaviorDefinition == null)
             {
-                Logger.LogEvent("Error hooking player behavior definition!", LogTypes.ERROR);
+                Logger.LogEvent("Error hooking player behavior definition!", LogTypes.ERROR, Environment.StackTrace);
             }
             else
             {
@@ -270,9 +294,9 @@ namespace Lunar.Server.World.Actors
 
         public void SendEquipmentUpdate()
         {
-            var packet = new Packet(PacketType.EQUIPMENT_UPDATE);
+            var packet = new Packet(PacketType.EQUIPMENT_UPDATE, ChannelType.UNASSIGNED);
             
-            for (int i = 0; i < (int)EquipmentSlots.COUNT; i++)
+            for (int i = 0; i < Enum.GetNames(typeof(EquipmentSlots)).Length; i++)
             {
                 if (this.Equipment.GetSlot(i) == null)
                 {
@@ -285,7 +309,7 @@ namespace Lunar.Server.World.Actors
                 packet.Message.Write(this.Equipment.GetSlot(i).PackData());
             }
 
-            this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered);
         }
 
 
@@ -308,7 +332,7 @@ namespace Lunar.Server.World.Actors
 
         public void SendPlayerStats()
         {
-            var packet = new Packet(PacketType.PLAYER_STATS);
+            var packet = new Packet(PacketType.PLAYER_STATS, ChannelType.UNASSIGNED);
             packet.Message.Write(this.UniqueID);
             packet.Message.Write(this.Speed);
             packet.Message.Write(this.Level);
@@ -318,14 +342,14 @@ namespace Lunar.Server.World.Actors
             packet.Message.Write(this.Intelligence + _intelBoost);
             packet.Message.Write(this.Dexterity + _dexBoost);
             packet.Message.Write(this.Defense + _defBoost);
-            this.Map.SendPacket(packet, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            this.Map.SendPacket(packet, NetDeliveryMethod.ReliableOrdered);
         }
 
         public void SendPlayerData()
         {
-            var packet = new Packet(PacketType.PLAYER_DATA);
+            var packet = new Packet(PacketType.PLAYER_DATA, ChannelType.UNASSIGNED);
             packet.Message.Write(this.Pack());
-            this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered);
         }
 
         public void WarpTo(Vector position)
@@ -334,23 +358,20 @@ namespace Lunar.Server.World.Actors
 
             this.Layer.OnPlayerWarped(this);
 
-            var packet = new Packet(PacketType.POSITION_UPDATE);
+            var packet = new Packet(PacketType.POSITION_UPDATE, ChannelType.UNASSIGNED);
             packet.Message.Write(this.UniqueID);
             packet.Message.Write(this.Layer.Name);
             packet.Message.Write(this.Position);
-            _map.SendPacket(packet, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            _map.SendPacket(packet, NetDeliveryMethod.ReliableOrdered);
 
             this.OnEvent("moved");
         }
 
-
-
-
         public void SendInventoryUpdate()
         {
-            var packet = new Packet(PacketType.INVENTORY_UPDATE);
+            var packet = new Packet(PacketType.INVENTORY_UPDATE, ChannelType.UNASSIGNED);
             
-            for (int i = 0; i < Constants.MAX_INVENTORY; i++)
+            for (int i = 0; i < Settings.MaxInventoryItems; i++)
             {
                 if (this.Inventory.GetSlot(i) != null)
                 {
@@ -365,7 +386,7 @@ namespace Lunar.Server.World.Actors
                 }
             }
 
-            this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered);
         }
 
       
@@ -379,10 +400,10 @@ namespace Lunar.Server.World.Actors
             
             this.MapLoaded = false;
            
-            _map?.OnPlayerQuit(this);
+            this.Map?.OnPlayerQuit(this);
             _map = map;
 
-            _map.OnPlayerJoined(this);
+            this.Map?.OnPlayerJoined(this);
 
             this.OnEvent("joinedMap");
         }
@@ -391,18 +412,18 @@ namespace Lunar.Server.World.Actors
         {
             this.JoinMap(map);
 
-            var packet = new Packet(PacketType.AVAILABLE_COMMANDS);
+            var packet = new Packet(PacketType.AVAILABLE_COMMANDS, ChannelType.UNASSIGNED);
             packet.Message.Write(Server.ServiceLocator.GetService<CommandHandler>().Pack());
-            this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered);
 
             this.OnEvent("joinedGame");
         }
 
         public void SendLoadingScreen(bool active = true)
         {
-            var packet = new Packet(PacketType.LOADING_SCREEN);
+            var packet = new Packet(PacketType.LOADING_SCREEN, ChannelType.UNASSIGNED);
             packet.Message.Write(active);
-            this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            this.SendPacket(packet, NetDeliveryMethod.ReliableOrdered);
         }
 
         public void LeaveGame()
@@ -506,36 +527,35 @@ namespace Lunar.Server.World.Actors
 
         public void SendMovementPacket()
         {
-            var packet = new Packet(PacketType.PLAYER_MOVING);
+            var packet = new Packet(PacketType.PLAYER_MOVING, ChannelType.UNASSIGNED);
             packet.Message.Write(this.UniqueID);
             packet.Message.Write((byte)this.Direction);
             packet.Message.Write((byte)this.State); // true if moving, false if not
             packet.Message.Write(this.Position);
 
-            _map.SendPacket(packet, NetDeliveryMethod.ReliableOrdered, ChannelType.UNASSIGNED);
+            _map.SendPacket(packet, NetDeliveryMethod.ReliableOrdered);
         }
 
      
         public void SendChatMessage(string message, ChatMessageType type)
         {
-            var packet = new Packet(PacketType.PLAYER_MSG);
+            var packet = new Packet(PacketType.PLAYER_MSG, ChannelType.UNASSIGNED);
 
             packet.Message.Write((byte)type);
             packet.Message.Write(message);
 
-            _connection.SendMessage(packet.Message, NetDeliveryMethod.Unreliable, (int)ChannelType.UNASSIGNED);
+            this.SendPacket(packet, NetDeliveryMethod.Unreliable);
         }
 
-        public void SendPacket(Packet packet, NetDeliveryMethod method, ChannelType channelType)
+        public void SendPacket(Packet packet, NetDeliveryMethod method)
         {
-            _connection.SendMessage(packet.Message, method, (int)channelType);
+            _connection.SendPacket(packet, method);
         }
 
         public void Save()
         {
             _descriptor.Save();
         }
-
 
         public NetBuffer Pack()
         {
@@ -545,14 +565,20 @@ namespace Lunar.Server.World.Actors
             buffer.Write(this.Name);
             buffer.Write(this.Speed);
             buffer.Write(this.Level);
+            buffer.Write(this.Experience);
+
+            buffer.Write(Settings.ExperienceThreshhold.Length > this.Level + 1
+                ? Settings.ExperienceThreshhold[this.Level + 1]
+                : 0);
+
             buffer.Write(this.Health);
             buffer.Write(this.MaximumHealth);
-            buffer.Write(this.Strength + _strengthBoost);
-            buffer.Write(this.Intelligence + _intelBoost);
-            buffer.Write(this.Dexterity + _dexBoost);
-            buffer.Write(this.Defense + _defBoost);
+            buffer.Write(this.Strength);
+            buffer.Write(this.Intelligence);
+            buffer.Write(this.Dexterity);
+            buffer.Write(this.Defense);
             buffer.Write(this.Position);
-            buffer.Write(this.Sprite.TextureName);
+            buffer.Write(this.SpriteSheet.Pack());
             buffer.Write(this.CollisionBounds);
             buffer.Write(this.Layer.Name);
 

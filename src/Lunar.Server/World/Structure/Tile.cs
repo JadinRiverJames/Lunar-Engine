@@ -1,9 +1,19 @@
-﻿/* Copyright (C) 2015 John Lamontagne - All Rights Reserved
- * Unauthorized copying of this file, via any medium is strictly prohibited
- * Proprietary and confidential
- * Written by John Lamontagne <jdlamont@asu.edu>.
- */
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
 
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using Lidgren.Network;
@@ -21,6 +31,13 @@ namespace Lunar.Server.World.Structure
     {
         private Sprite _sprite;
         private Rect _collisionArea;
+
+        
+        private NPCHeartbeatListener _heartbeatListener;
+
+        private int _nextNPCSpawnTime;
+
+        public Vector Position { get; }
 
         public bool Animated { get; set; }
 
@@ -44,7 +61,7 @@ namespace Lunar.Server.World.Structure
         {
             _sprite = sprite;
 
-            _collisionArea = new Rect(sprite.Transform.Position.X, sprite.Transform.Position.Y, Constants.TILE_SIZE, Constants.TILE_SIZE);
+            _collisionArea = new Rect(sprite.Transform.Position.X, sprite.Transform.Position.Y, Settings.TileSize, Settings.TileSize);
 
             this.Animated = false;
             //this.LightColor = Color.White;
@@ -52,11 +69,23 @@ namespace Lunar.Server.World.Structure
 
         public Tile(Vector position)
         {
-            _collisionArea = new Rect(position.X, position.Y, Constants.TILE_SIZE, Constants.TILE_SIZE);
+            this.Position = position;
+            _collisionArea = new Rect(position.X, position.Y, Settings.TileSize, Settings.TileSize);
+            _heartbeatListener = new NPCHeartbeatListener();
         }
 
         public void Update(GameTime gameTime)
         {
+            if (this.Attribute == TileAttributes.NPCSpawn)
+            {
+                var attributeData = ((NPCSpawnAttributeData)this.AttributeData);
+
+                if (_nextNPCSpawnTime <= gameTime.TotalElapsedTime && _heartbeatListener.NPCs.Count <= attributeData.MaxSpawns)
+                {
+                    this.NPCSpawnerEvent?.Invoke(this, new NPCSpawnerEventArgs(attributeData.NPCID, attributeData.MaxSpawns, this.Position, _heartbeatListener));
+                    _nextNPCSpawnTime = ((NPCSpawnAttributeData)this.AttributeData).RespawnTime * 1000;
+                }
+            }
         }
 
         public bool CheckCollision(Vector position, Rect collisionBounds)
@@ -91,7 +120,7 @@ namespace Lunar.Server.World.Structure
                         else
                         {
 
-                            Logger.LogEvent($"Player {player.Name} stepped on warp tile where destination does not exist!", LogTypes.ERROR);
+                            Logger.LogEvent($"Player {player.Name} stepped on warp tile where destination does not exist!", LogTypes.ERROR, Environment.StackTrace);
                             return;
                         }
                        
@@ -158,6 +187,57 @@ namespace Lunar.Server.World.Structure
                 };
 
                 this.FrameCount = bR.ReadInt32();
+            }
+        }
+
+        public event EventHandler<NPCSpawnerEventArgs> NPCSpawnerEvent;
+
+        /// <summary>
+        /// Keeps track of the npcs which have been spawned as a result of this tile.
+        /// </summary>
+        public class NPCHeartbeatListener
+        {
+            public ObservableCollection<NPC> NPCs { get; }
+
+            public NPCHeartbeatListener()
+            {
+                this.NPCs = new ObservableCollection<NPC>();
+
+                this.NPCs.CollectionChanged += (sender, args) =>
+                {
+                    List<NPC> npcsToRemove = new List<NPC>(this.NPCs.Count);
+
+                    foreach (NPC npc in args.NewItems)
+                    {
+                        npc.Died += (o, eventArgs) =>
+                        {
+                            npcsToRemove.Add(npc);
+                        };
+                    }
+
+                    foreach (var npc in npcsToRemove)
+                        this.NPCs.Remove(npc);
+                };
+            }
+        }
+
+        public class NPCSpawnerEventArgs : EventArgs
+        {
+            public string Name { get; }
+
+            public int Count { get; }
+
+            public Vector Position { get; }
+
+            public NPCHeartbeatListener HeartbeatListener { get; }
+
+            public NPCSpawnerEventArgs(string name, int count, Vector position, NPCHeartbeatListener heartBeatListener)
+            {
+                this.Name = name;
+                this.Count = count;
+                this.Position = position;
+
+                this.HeartbeatListener = heartBeatListener;
             }
         }
     }

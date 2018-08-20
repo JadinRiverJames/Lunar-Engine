@@ -1,4 +1,16 @@
-﻿using NLua;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+using NLua;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -7,8 +19,15 @@ namespace Lunar.Server.Utilities.Scripting
 {
     public class Script
     {
+        /// <summary>
+        /// Share one instance of the Lua script engine across scripts.
+        /// </summary>
         private Lua _lua;
+
+        private bool _isScriptFile;
+
         private string _scriptFilePath;
+        private string _script;
         private FileSystemWatcher _fsWatcher;
         private Stopwatch _fileWatchStopWatch;
         private long _lastFileWatchChange;
@@ -30,18 +49,41 @@ namespace Lunar.Server.Utilities.Scripting
             return _lua.GetTable(tablePath);
         }
 
-        public Script(string scriptFilePath)
+        public LuaFunction GetFunction(string functionPath)
         {
-            _scriptFilePath = scriptFilePath;
+            return _lua.GetFunction(functionPath);
+        }
+
+        public Script(string script, bool isScriptFile = true)
+        {
+            _isScriptFile = isScriptFile;
+
+            if (isScriptFile)
+            {
+                _scriptFilePath = script;
+            }
+            else
+            {
+                _script = script;
+            }
+ 
             _fileWatchStopWatch = new Stopwatch();
 
             _lua = new Lua();
             _lua.LoadCLRPackage();
             _lua.RegisterFunction("typeof", typeof(ScriptUtilities).GetMethod("GetTypeOf"));
 
-            this.Execute();
-            this.CreateFileWatcher();
+            if (isScriptFile)
+            {
+                this.ExecuteScriptFile();
+                this.CreateFileWatcher();
+            }
+            else
+            {
+                this.ExecuteScript();
+            }
         }
+
         private void CreateFileWatcher()
         {
             // Create a new FileSystemWatcher and set its properties.
@@ -75,7 +117,12 @@ namespace Lunar.Server.Utilities.Scripting
             }
         }
 
-        private void Execute()
+        private void ExecuteScript()
+        {
+            
+        }
+
+        private void ExecuteScriptFile()
         {
             try
             {
@@ -106,7 +153,15 @@ namespace Lunar.Server.Utilities.Scripting
         /// </summary>
         public void ReExecute()
         {
-            this.Execute();
+            if (_isScriptFile)
+            {
+                this.ExecuteScriptFile();
+                this.CreateFileWatcher();
+            }
+            else
+            {
+                this.ExecuteScript();
+            }
         }
     }
 }

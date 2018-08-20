@@ -1,4 +1,16 @@
-﻿using Lunar.Core;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+using Lunar.Core;
 
 namespace Lunar.Server.World.Actors
 {
@@ -10,7 +22,7 @@ namespace Lunar.Server.World.Actors
         public Inventory(Player player)
         {
             _player = player;
-            _inventory = new InventorySlot[Constants.MAX_INVENTORY];
+            _inventory = new InventorySlot[Settings.MaxInventoryItems];
         }
 
         public InventorySlot GetSlot(int slotNum)
@@ -86,7 +98,7 @@ namespace Lunar.Server.World.Actors
             {
                 bool placedItem = false;
 
-                for (int i = 0; i < Constants.MAX_INVENTORY; i++)
+                for (int i = 0; i < Settings.MaxInventoryItems; i++)
                 {
                     if (_inventory[i] == null)
                     {

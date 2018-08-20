@@ -1,9 +1,22 @@
-﻿using Lidgren.Network;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+using Lidgren.Network;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Lunar.Client.GUI.Widgets;
 using Lunar.Client.Net;
+using Lunar.Client.Utilities;
 using Lunar.Core.Net;
 
 namespace Lunar.Client.Scenes
@@ -46,7 +59,7 @@ namespace Lunar.Client.Scenes
 
         private void InitalizeInterface()
         {
-            var loadingIndicatorTexture2D = this.ContentManager.Load<Texture2D>(Constants.FILEPATH_GFX + "Interface/loadingIndicator");
+            var loadingIndicatorTexture2D = this.ContentManager.LoadTexture2D(Constants.FILEPATH_GFX + "Interface/loadingIndicator.png");
             var loadingFont = this.ContentManager.Load<SpriteFont>(Constants.FILEPATH_GFX + "Fonts/loadingFont");
 
             var picLoadingIndicator = new AnimatedPicture(loadingIndicatorTexture2D, 25,
@@ -61,7 +74,7 @@ namespace Lunar.Client.Scenes
 
             var lblLoading = new Label(loadingFont)
             {
-                Text = $"Loading {Constants.GAME_NAME} ...",
+                Text = $"Loading {Settings.GameName} ...",
                 Visible = true,
                 ZOrder = 1
             };

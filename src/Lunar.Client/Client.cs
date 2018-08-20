@@ -1,4 +1,16 @@
-﻿using System;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -10,6 +22,7 @@ using Lunar.Client.Utilities;
 using Lunar.Client.Utilities.Input;
 using Lunar.Client.Utilities.Services;
 using Lunar.Core.Utilities;
+using Lunar.Graphics;
 
 namespace Lunar.Client
 {
@@ -36,9 +49,7 @@ namespace Lunar.Client
 
         public Client()
         {
-            Settings.ResolutionX = Constants.RESOLUTION_X;
-            Settings.ResolutionY = Constants.RESOLUTION_Y;
-            Settings.DisplayNetworkMessages = false;
+            Settings.Initalize();
 
             _graphics = new GraphicsDeviceManager(this)
             {
@@ -87,7 +98,7 @@ namespace Lunar.Client
             Console.SetOut(_consoleRedirector);
 
 
-            Window.Title = Constants.GAME_NAME;
+            Window.Title = Settings.GameName;
 
             base.Initialize();
         }
@@ -105,10 +116,14 @@ namespace Lunar.Client
         /// </summary>
         protected override void LoadContent()
         {
-            // Create a new SpriteBatch, which can be used to draw textures.
-            _spriteBatch = new SpriteBatch(GraphicsDevice);
+            // Initialize the SpriteBatchExtensions
+            SpriteBatchExtensions.Initalize(this.GraphicsDevice);
 
-            _cursorSprite = this.Content.Load<Texture2D>(Constants.FILEPATH_GFX + "cursor");
+            // Create a new SpriteBatch, which can be used to draw textures.
+            _spriteBatch = new SpriteBatch(this.GraphicsDevice);
+
+
+            _cursorSprite = this.Content.LoadTexture2D(Constants.FILEPATH_GFX + "cursor.png");
         }
 
         /// <summary>

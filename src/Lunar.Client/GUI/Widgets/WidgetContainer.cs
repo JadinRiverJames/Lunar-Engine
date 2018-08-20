@@ -1,4 +1,16 @@
-﻿using System;
+﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+using System;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -28,8 +40,10 @@ namespace Lunar.Client.GUI.Widgets
 
         public int ZOrder { get; set; }
 
+        public Vector2 Origin { get; set; }
+
         public Vector2 Position {
-            get { return _position; }
+            get => _position;
             set
             {
                 // Update the child elements
@@ -48,7 +62,7 @@ namespace Lunar.Client.GUI.Widgets
 
         public Texture2D BackSprite
         {
-            get { return _backSprite; }
+            get => _backSprite;
             set
             {
                 _backSprite = value;
@@ -58,17 +72,14 @@ namespace Lunar.Client.GUI.Widgets
 
         public Rectangle Area
         {
-            get { return _area; }
-            set { _area = value; }
+            get => _area;
+            set => _area = value;
         }
 
 
         public Vector2 Size
         {
-            get
-            {
-                return _size;
-            }
+            get => _size;
             set
             {
                 _size = value;
@@ -89,6 +100,8 @@ namespace Lunar.Client.GUI.Widgets
             this.Selectable = true;
 
             this.Area = new Rectangle((int)this.Position.X, (int)this.Position.Y, (int)this.Size.X, (int)this.Size.Y);
+            this.Visible = true;
+            this.Origin = Vector2.Zero;
         }
 
         public WidgetContainer(Vector2 size)
@@ -97,6 +110,8 @@ namespace Lunar.Client.GUI.Widgets
             this.Selectable = true;
 
             this.Area = new Rectangle((int)this.Position.X, (int)this.Position.Y, (int)this.Size.X, (int)this.Size.Y);
+            this.Visible = true;
+            this.Origin = Vector2.Zero;
         }
 
         public void OnMouseHover(MouseState mouseState)
@@ -152,12 +167,6 @@ namespace Lunar.Client.GUI.Widgets
             base.Update(gameTime);
         }
 
-        public override void Draw(SpriteBatch spriteBatch)
-        {
-        
-            base.Draw(spriteBatch);
-        }
-
         public bool Contains(Point point)
         {
             return this.Area.Contains(point) || _widgets.Values.Any(widget => widget.Contains(point));
@@ -180,11 +189,47 @@ namespace Lunar.Client.GUI.Widgets
             this.Begin(spriteBatch);
 
             if (this.BackSprite != null)
-                spriteBatch.Draw(this.BackSprite, this.Position, null, Color.White, 0f, Vector2.Zero, new Vector2(_size.X / this.BackSprite.Width, _size.Y / this.BackSprite.Height), SpriteEffects.None, (float)this.ZOrder / widgetCount);
+                spriteBatch.Draw(this.BackSprite, this.Position - this.Origin, null, Color.White, 0f, Vector2.Zero, new Vector2(_size.X / this.BackSprite.Width, _size.Y / this.BackSprite.Height), SpriteEffects.None, (float)this.ZOrder / widgetCount);
 
             this.Draw(spriteBatch);
 
             this.End(spriteBatch);
+        }
+
+        protected override Vector2 ParsePosition(string posX, string posY)
+        {
+            float x = 0;
+            float y = 0;
+
+            if (posX == null)
+            {
+                x = 0;
+            }
+            else if (posX.Contains("%"))
+            {
+                float.TryParse(posX.Replace("%", ""), out float pX);
+                x = this.Size.Y * (pX / 100f);
+            }
+            else
+            {
+                float.TryParse(posX, out x);
+            }
+
+            if (posY == null)
+            {
+                y = 0;
+            }
+            else if (posY.Contains("%"))
+            {
+                float.TryParse(posY.Replace("%", ""), out float pY);
+                y = this.Size.Y * (pY / 100f);
+            }
+            else
+            {
+                float.TryParse(posY, out y);
+            }
+
+            return new Vector2(x + this.Position.X, y + this.Position.Y);
         }
 
         public bool Selected { get; set; }
