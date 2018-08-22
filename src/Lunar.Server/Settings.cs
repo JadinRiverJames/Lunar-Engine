@@ -87,7 +87,7 @@ namespace Lunar.Server
                     new XElement("User", 0),
                     new XElement("Admin", 1)
                 ),
-                new XElement("Default Role", "User")
+                new XElement("DefaultRole", "User")
             );
             xml.Save(_filePathConfig);
         }
