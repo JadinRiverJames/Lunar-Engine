@@ -1,4 +1,4 @@
-﻿/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
+/** Copyright 2018 John Lamontagne https://www.mmorpgcreation.com
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ namespace Lunar.Client.GUI.Widgets
         private Vector2 _scale;
         private KeyboardState _prevKeyState;
         private long _nextInputProcessTime;
+        private bool lineFlutter;
 
         // For widget binding.
         private IWidget _boundWidget;
@@ -64,6 +65,7 @@ namespace Lunar.Client.GUI.Widgets
 
         public int ZOrder { get; set; }
 
+
         public Texture2D Sprite
         {
             get => _sprite;
@@ -91,6 +93,7 @@ namespace Lunar.Client.GUI.Widgets
 
         public Vector2 Origin { get; set; }
 
+
         public string Mask
         {
             get => _mask;
@@ -114,7 +117,9 @@ namespace Lunar.Client.GUI.Widgets
             }
         }
 
-        public SpriteFont Font { get => _font;
+        public SpriteFont Font
+        {
+            get => _font;
             set => _font = value;
         }
 
@@ -227,6 +232,7 @@ namespace Lunar.Client.GUI.Widgets
 
             foreach (Keys key in pressedKeys)
             {
+
                 if (_prevKeyState.IsKeyUp(key))
                 {
                     if (keyState.IsKeyDown(Keys.Back) && _prevKeyState.IsKeyUp(Keys.Back))
@@ -257,6 +263,13 @@ namespace Lunar.Client.GUI.Widgets
 
             var mouseState = Mouse.GetState();
 
+            if (_nextCursorBlinkTime < gameTime.TotalGameTime.TotalMilliseconds)
+            {
+                lineFlutter = !lineFlutter;
+                _nextCursorBlinkTime = (long)gameTime.TotalGameTime.TotalMilliseconds + 500;
+            }
+
+
             if (_area.Contains(mouseState.Position))
             {
                 if (mouseState.LeftButton == ButtonState.Pressed)
@@ -277,7 +290,8 @@ namespace Lunar.Client.GUI.Widgets
                 if (_nextCursorBlinkTime < gameTime.ElapsedGameTime.Milliseconds)
                 {
                     _cursorVisible = !_cursorVisible;
-                    _nextCursorBlinkTime = gameTime.ElapsedGameTime.Milliseconds + 500;
+
+
                 }
             }
 
@@ -299,7 +313,20 @@ namespace Lunar.Client.GUI.Widgets
             if (!this.Visible) return;
 
             spriteBatch.Draw(this._sprite, this.Position + this.Origin, null, Color.White, 0f, Vector2.Zero, this.Scale, SpriteEffects.None, (float)this.ZOrder / widgetCount);
-            spriteBatch.DrawString(_font, _displayText, _textPosition + this.Origin, this.ForeColor, 0f, Vector2.Zero, 1f, SpriteEffects.None, ((float)this.ZOrder / widgetCount) + .01f);
+
+            if (this.Active & lineFlutter == true)
+            {
+                spriteBatch.DrawString(_font, _displayText + "|", _textPosition + this.Origin, this.ForeColor, 0f, Vector2.Zero, 1f, SpriteEffects.None, ((float)this.ZOrder / widgetCount) + .01f);
+            }
+            if (this.Active & lineFlutter == false)
+            {
+                spriteBatch.DrawString(_font, _displayText, _textPosition + this.Origin, this.ForeColor, 0f, Vector2.Zero, 1f, SpriteEffects.None, ((float)this.ZOrder / widgetCount) + .01f);
+            }
+
+            if (!this.Active)
+            {
+                spriteBatch.DrawString(_font, _displayText, _textPosition + this.Origin, this.ForeColor, 0f, Vector2.Zero, 1f, SpriteEffects.None, ((float)this.ZOrder / widgetCount) + .01f);
+            }
         }
 
         public bool Contains(Point point)
